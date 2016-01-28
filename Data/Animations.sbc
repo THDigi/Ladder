@@ -1,0 +1,104 @@
+<?xml version="1.0"?>
+<Definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Animations>
+
+    <Animation>
+      <Id>
+        <TypeId>AnimationDefinition</TypeId>
+        <SubtypeId>Mod_LadderMounting</SubtypeId>
+      </Id>
+      <DisplayName>Mod_LadderMounting</DisplayName>
+      <Description>Mod_LadderMounting</Description>
+      <Icon>Textures\GUI\Icons\Fake.dds</Icon>
+      <AnimationModel>Models\Characters\Animations\freefall.mwm</AnimationModel>
+      <ClipIndex>0</ClipIndex>
+      <InfluenceArea>Body</InfluenceArea>
+      <Public>false</Public>
+    </Animation>
+
+    <Animation>
+      <Id>
+        <TypeId>AnimationDefinition</TypeId>
+        <SubtypeId>Mod_LadderIdle</SubtypeId>
+      </Id>
+      <DisplayName>Mod_LadderIdle</DisplayName>
+      <Description>Mod_LadderIdle</Description>
+      <Icon>Textures\GUI\Icons\Fake.dds</Icon>
+      <AnimationModel>Models\Characters\Animations\idle.mwm</AnimationModel>
+      <ClipIndex>0</ClipIndex>
+      <InfluenceArea>Body</InfluenceArea>
+      <Public>false</Public>
+    </Animation>
+
+    <Animation>
+      <Id>
+        <TypeId>AnimationDefinition</TypeId>
+        <SubtypeId>Mod_LadderUp</SubtypeId>
+      </Id>
+      <DisplayName>Mod_LadderUp</DisplayName>
+      <Description>Mod_LadderUp</Description>
+      <Icon>Textures\GUI\Icons\Fake.dds</Icon>
+      <AnimationModel>Models\Characters\Animations\run.mwm</AnimationModel>
+      <ClipIndex>0</ClipIndex>
+      <InfluenceArea>Body</InfluenceArea>
+      <Public>false</Public>
+    </Animation>
+
+    <Animation>
+      <Id>
+        <TypeId>AnimationDefinition</TypeId>
+        <SubtypeId>Mod_LadderDown</SubtypeId>
+      </Id>
+      <DisplayName>Mod_LadderDown</DisplayName>
+      <Description>Mod_LadderDown</Description>
+      <Icon>Textures\GUI\Icons\Fake.dds</Icon>
+      <AnimationModel>Models\Characters\Animations\runback.mwm</AnimationModel>
+      <ClipIndex>0</ClipIndex>
+      <InfluenceArea>Body</InfluenceArea>
+      <Public>false</Public>
+    </Animation>
+
+    <Animation>
+      <Id>
+        <TypeId>AnimationDefinition</TypeId>
+        <SubtypeId>Mod_LadderDismountLeft</SubtypeId>
+      </Id>
+      <DisplayName>Mod_LadderDismountLeft</DisplayName>
+      <Description>Mod_LadderDismountLeft</Description>
+      <Icon>Textures\GUI\Icons\Fake.dds</Icon>
+      <AnimationModel>Models\Characters\Animations\runstrafe_left.mwm</AnimationModel>
+      <ClipIndex>0</ClipIndex>
+      <InfluenceArea>Body</InfluenceArea>
+      <Public>false</Public>
+    </Animation>
+
+    <Animation>
+      <Id>
+        <TypeId>AnimationDefinition</TypeId>
+        <SubtypeId>Mod_LadderDismountRight</SubtypeId>
+      </Id>
+      <DisplayName>Mod_LadderDismountRight</DisplayName>
+      <Description>Mod_LadderDismountRight</Description>
+      <Icon>Textures\GUI\Icons\Fake.dds</Icon>
+      <AnimationModel>Models\Characters\Animations\runstrafe_right.mwm</AnimationModel>
+      <ClipIndex>0</ClipIndex>
+      <InfluenceArea>Body</InfluenceArea>
+      <Public>false</Public>
+    </Animation>
+
+    <Animation>
+      <Id>
+        <TypeId>AnimationDefinition</TypeId>
+        <SubtypeId>Mod_LadderJumpOff</SubtypeId>
+      </Id>
+      <DisplayName>Mod_LadderJumpOff</DisplayName>
+      <Description>Mod_LadderJumpOff</Description>
+      <Icon>Textures\GUI\Icons\Fake.dds</Icon>
+      <AnimationModel>Models\Characters\Animations\jump.mwm</AnimationModel>
+      <ClipIndex>0</ClipIndex>
+      <InfluenceArea>Body</InfluenceArea>
+      <Public>false</Public>
+    </Animation>
+
+  </Animations>
+</Definitions>
