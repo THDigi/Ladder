@@ -645,7 +645,7 @@ namespace Digi.Ladder
             
             usingLadder = null;
             
-            if(setFreeFallAnimation && character != null && lastLadderAnim != LadderAnimation.NONE)
+            if(MyAPIGateway.Session.ControlledObject is IMyCharacter && setFreeFallAnimation && character != null && lastLadderAnim != LadderAnimation.NONE)
             {
                 LadderAnim(character, LadderAnimation.JUMP_OFF);
             }
