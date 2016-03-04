@@ -9,7 +9,6 @@ using Sandbox.Common;
 using Sandbox.Common.Components;
 using Sandbox.Common.Input;
 using Sandbox.Common.ObjectBuilders;
-using Sandbox.Common.ObjectBuilders.VRageData;
 using Sandbox.Definitions;
 using Sandbox.Engine;
 using Sandbox.Engine.Physics;
@@ -21,9 +20,9 @@ using Sandbox.ModAPI;
 using Sandbox.ModAPI.Interfaces;
 using VRage;
 using VRage.Common.Utils;
-using VRage.Compiler;
-using VRage.Input;
+using VRage.Game;
 using VRage.ObjectBuilders;
+using VRage.Game.Entity;
 using VRage.Game.Components;
 using VRage.ModAPI;
 using VRage.Utils;
@@ -674,7 +673,9 @@ namespace Digi.Ladder
                                }, true);
         }
     }
-
+    
+    // TODO retractable ladder?
+    // TODO one unit height ladder for smallship?
     [MyEntityComponentDescriptor(typeof(MyObjectBuilder_TerminalBlock), "LargeShipUsableLadder", "SmallShipUsableLadder")]
     public class LadderBlock : MyGameLogicComponent
     {
