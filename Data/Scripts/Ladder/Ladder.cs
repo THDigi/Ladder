@@ -6,8 +6,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using Sandbox.Common;
-using Sandbox.Common.Components;
-using Sandbox.Common.Input;
 using Sandbox.Common.ObjectBuilders;
 using Sandbox.Definitions;
 using Sandbox.Engine;
@@ -18,9 +16,12 @@ using Sandbox.Game.Entities;
 using Sandbox.Game.Gui;
 using Sandbox.ModAPI;
 using Sandbox.ModAPI.Interfaces;
+using SpaceEngineers.Game.ModAPI.Ingame;
 using VRage;
 using VRage.Common.Utils;
 using VRage.Game;
+using VRage.Game.ModAPI;
+using VRage.Input;
 using VRage.ObjectBuilders;
 using VRage.Game.Entity;
 using VRage.Game.Components;
@@ -28,6 +29,7 @@ using VRage.ModAPI;
 using VRage.Utils;
 using VRageMath;
 using Digi.Utils;
+using VRageRender;
 using Ingame = Sandbox.ModAPI.Ingame;
 using IMyControllableEntity = Sandbox.Game.Entities.IMyControllableEntity;
 
@@ -40,43 +42,62 @@ namespace Digi.Ladder
         private bool isDedicated = false;
         
         private IMyEntity character = null;
+        //private MyCharacterDefinition characterDef = null;
         private IMyTerminalBlock usingLadder = null;
-        private bool controlMode = true;
-        private bool initialDampeners = false;
         private float mounting = 2f;
         private float dismounting = 2;
         private MyOrientedBoundingBoxD ladderBox = new MyOrientedBoundingBoxD();
         private Vector3 gravity = Vector3.Zero;
-        private byte skipPlanets = 0;
-        private byte skipRetryGravity = 0;
+        private short skipPlanets = 0;
+        private byte skipRetryGravity = GRAVITY_UPDATERATE;
         private byte skipRefreshAnim = 0;
+        private bool alignedToGravity = false;
+        private float travelForSound = 0;
+        private bool grabOnLoad = false;
+        
+        public Settings settings = null;
+        
+        //private MyEntity debugBox = null; // UNDONE DEBUG
         
         private const string LEARNFILE = "learned";
         private bool loadedAllLearned = false;
-        private bool[] learned = new bool[4];
-        private IMyHudNotification[] learnNotify = new MyHudNotification[4];
+        private bool[] learned = new bool[5];
+        private IMyHudNotification[] learnNotify = new MyHudNotification[5];
         private string[] learnText = new string[]
         {
-            "Look up/down to climb",
-            "Look left/right to dismount left/right",
-            "Look back to jump off",
-            "Dampeners key toggles control"
+            "Move forward/backward to climb",
+            "Sprint to climb/descend faster",
+            "Strafe left/right to dismount left or right",
+            "Jump to jump off in the direction you're looking",
+            "Crouch or turn on jetpack to dismount"
         };
         
+        private MyEntity3DSoundEmitter soundEmitter = null;
+        
+        public static readonly MySoundPair soundStep = new MySoundPair("PlayerLadderStep");
+        
         public static Dictionary<long, MyPlanet> planets = new Dictionary<long, MyPlanet>();
-        public static Dictionary<long, Ingame.IMyGravityGeneratorBase> gravityGenerators = new Dictionary<long, Ingame.IMyGravityGeneratorBase>();
+        public static Dictionary<long, IMyGravityGeneratorBase> gravityGenerators = new Dictionary<long, IMyGravityGeneratorBase>();
         
         public static IMyHudNotification status;
         public static Dictionary<long, IMyTerminalBlock> ladders = new Dictionary<long, IMyTerminalBlock>();
         
         private HashSet<IMyEntity> ents = new HashSet<IMyEntity>();
+        private List<IMyPlayer> players = new List<IMyPlayer>();
         
         public const float ALIGN_STEP = 0.01f;
         public const float ALIGN_MUL = 1.2f;
         public const float TICKRATE = 1f/60f;
-        public const float UPDATE_RADIUS = 5f;
-        public static readonly Vector3D BOX_LARGE = new Vector3D(2.5, 2.5, 1) / 2;
-        public static readonly Vector3D BOX_SMALL = new Vector3D(1.5, 2.5, 1) / 2;
+        public const float UPDATE_RADIUS = 10f;
+        public const float EXTRA_OFFSET_Z = 0.5f;
+        public const double RAY_HEIGHT = 1.7;
+        
+        public const byte GRAVITY_UPDATERATE = 15;
+        
+        public const ushort PACKET = 23991;
+        public const int PACKET_RANGE_SQ = 100*100;
+        
+        public static readonly Encoding encode = Encoding.Unicode;
         
         public const string LEARN_UNCHECK = "[  ] ";
         public const string LEARN_CHECK = "[x] ";
@@ -113,48 +134,65 @@ namespace Digi.Ladder
             init = true;
             isDedicated = MyAPIGateway.Multiplayer.IsServer && MyAPIGateway.Utilities.IsDedicated;
             
+            Log.Init();
             Log.Info("Initialized.");
             
-            try
+            if(!isDedicated)
             {
-                if(MyAPIGateway.Utilities.FileExistsInLocalStorage(LEARNFILE, typeof(LadderMod)))
+                settings = new Settings();
+                
+                if(settings != null && settings.onLadderWorlds.Count > 0 && settings.onLadderWorlds.Contains(MyAPIGateway.Session.Name.ToLower()))
                 {
-                    var file = MyAPIGateway.Utilities.ReadFileInLocalStorage(LEARNFILE, typeof(LadderMod));
-                    
-                    string line;
-                    
-                    while((line = file.ReadLine()) != null)
-                    {
-                        line = line.Trim();
-                        
-                        if(line.StartsWith("//"))
-                            continue;
-                        
-                        switch(line)
-                        {
-                            case "climb":
-                                learned[0] = true;
-                                break;
-                            case "dismount":
-                                learned[1] = true;
-                                break;
-                            case "jump":
-                                learned[2] = true;
-                                break;
-                            case "toggle":
-                                learned[3] = true;
-                                break;
-                        }
-                    }
-                    
-                    loadedAllLearned = (learned[0] && learned[1] && learned[2] && learned[3]);
-                    
-                    file.Close();
+                    grabOnLoad = true;
                 }
-            }
-            catch(Exception e)
-            {
-                Log.Error(e);
+                
+                MyAPIGateway.Utilities.MessageEntered += MessageEntered;
+                MyAPIGateway.Multiplayer.RegisterMessageHandler(PACKET, ReceivedPacket);
+                
+                try
+                {
+                    if(MyAPIGateway.Utilities.FileExistsInLocalStorage(LEARNFILE, typeof(LadderMod)))
+                    {
+                        var file = MyAPIGateway.Utilities.ReadFileInLocalStorage(LEARNFILE, typeof(LadderMod));
+                        
+                        string line;
+                        
+                        while((line = file.ReadLine()) != null)
+                        {
+                            line = line.Trim();
+                            
+                            if(line.StartsWith("//"))
+                                continue;
+                            
+                            switch(line)
+                            {
+                                case "move_climb":
+                                    learned[0] = true;
+                                    break;
+                                case "move_sprint":
+                                    learned[1] = true;
+                                    break;
+                                case "side_dismount":
+                                    learned[2] = true;
+                                    break;
+                                case "jump_dismount":
+                                    learned[3] = true;
+                                    break;
+                                case "crouch_dismount":
+                                    learned[4] = true;
+                                    break;
+                            }
+                        }
+                        
+                        loadedAllLearned = (learned[0] && learned[1] && learned[2] && learned[3] && learned[4]);
+                        
+                        file.Close();
+                    }
+                }
+                catch(Exception e)
+                {
+                    Log.Error(e);
+                }
             }
         }
         
@@ -168,16 +206,19 @@ namespace Digi.Ladder
                 StringBuilder text = new StringBuilder();
                 
                 if(learned[0])
-                    text.AppendLine("climb");
+                    text.AppendLine("move_climb");
                 
                 if(learned[1])
-                    text.AppendLine("dismount");
+                    text.AppendLine("move_sprint");
                 
                 if(learned[2])
-                    text.AppendLine("jump");
+                    text.AppendLine("side_dismount");
                 
                 if(learned[3])
-                    text.AppendLine("toggle");
+                    text.AppendLine("jump_dismount");
+                
+                if(learned[4])
+                    text.AppendLine("crouch_dismount");
                 
                 if(text.Length > 0)
                 {
@@ -193,17 +234,87 @@ namespace Digi.Ladder
             }
         }
         
+        public override void SaveData()
+        {
+            try
+            {
+                if(!isDedicated)
+                {
+                    if(settings == null)
+                    {
+                        Log.Error("SaveData() :: Settings didn't initialize!");
+                        return;
+                    }
+                    
+                    string worldName = MyAPIGateway.Session.Name.ToLower();
+                    
+                    if(usingLadder != null != settings.onLadderWorlds.Contains(worldName))
+                    {
+                        if(usingLadder != null)
+                            settings.onLadderWorlds.Add(worldName);
+                        else
+                            settings.onLadderWorlds.Remove(worldName);
+                        
+                        settings.Save();
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                Log.Error(e);
+            }
+        }
+        
         protected override void UnloadData()
         {
-            init = false;
-            ladders.Clear();
-            planets.Clear();
-            gravityGenerators.Clear();
-            
-            SaveLearn();
+            try
+            {
+                init = false;
+                ladders.Clear();
+                planets.Clear();
+                gravityGenerators.Clear();
+                
+                if(!isDedicated)
+                {
+                    if(settings != null)
+                    {
+                        settings.Close();
+                        settings = null;
+                    }
+                    
+                    MyAPIGateway.Utilities.MessageEntered -= MessageEntered;
+                    MyAPIGateway.Multiplayer.UnregisterMessageHandler(PACKET, ReceivedPacket);
+                    
+                    SaveLearn();
+                }
+            }
+            catch(Exception e)
+            {
+                Log.Error(e);
+            }
             
             Log.Info("Mod unloaded.");
             Log.Close();
+        }
+        
+        public void ReceivedPacket(byte[] bytes)
+        {
+            try
+            {
+                string data = encode.GetString(bytes);
+                long entId;
+                
+                if(long.TryParse(data, out entId) && MyAPIGateway.Entities.EntityExists(entId))
+                {
+                    var ent = MyAPIGateway.Entities.GetEntityById(entId);
+                    var emitter = new MyEntity3DSoundEmitter(ent as MyEntity);
+                    emitter.PlaySound(soundStep, false, false, false);
+                }
+            }
+            catch(Exception e)
+            {
+                Log.Error(e);
+            }
         }
         
         public static void SetLadderStatus(string text, MyFontEnum font, int aliveTime = 100)
@@ -263,9 +374,9 @@ namespace Digi.Ladder
                 {
                     if(generator.IsWorking)
                     {
-                        if(generator is Ingame.IMyGravityGeneratorSphere)
+                        if(generator is IMyGravityGeneratorSphere)
                         {
-                            var gen = (generator as Ingame.IMyGravityGeneratorSphere);
+                            var gen = (generator as IMyGravityGeneratorSphere);
                             
                             if(Vector3D.DistanceSquared(generator.WorldMatrix.Translation, point) <= (gen.Radius * gen.Radius))
                             {
@@ -274,9 +385,9 @@ namespace Digi.Ladder
                                 artificialDir += (Vector3)dir * (gen.Gravity / 9.81f); // HACK remove division once gravity value is fixed
                             }
                         }
-                        else if(generator is Ingame.IMyGravityGenerator)
+                        else if(generator is IMyGravityGenerator)
                         {
-                            var gen = (generator as Ingame.IMyGravityGenerator);
+                            var gen = (generator as IMyGravityGenerator);
                             var halfExtents = new Vector3(gen.FieldWidth / 2, gen.FieldHeight / 2, gen.FieldDepth / 2);
                             var box = new MyOrientedBoundingBoxD(gen.WorldMatrix.Translation, halfExtents, Quaternion.CreateFromRotationMatrix(gen.WorldMatrix));
                             
@@ -301,8 +412,6 @@ namespace Digi.Ladder
             return Vector3.Zero;
         }
         
-        //private MyEntity debugBox = null; // UNDONE DEBUG
-        
         public override void UpdateBeforeSimulation()
         {
             try
@@ -323,50 +432,74 @@ namespace Digi.Ladder
                 
                 var playerControlled = MyAPIGateway.Session.ControlledObject;
                 
-                if(character == null || character.Closed || character.MarkedForClose)
+                /* TODO ?
+                if(character != null)
                 {
-                    if(playerControlled != null)
+                    if(character.Closed)
                     {
-                        if(playerControlled.Entity is IMyCharacter)
-                        {
-                            character = playerControlled.Entity;
-                        }
-                        else if(playerControlled.Entity is Ingame.IMyCockpit) // in a seat, certainly not gonna climb ladders
-                        {
-                            character = null;
-                        }
-                        // other cases depend on having the character controlled for a bit to get the reference
+                        character = null;
                     }
-                    else
+                    else if(playerControlled.Entity is IMyCharacter && character.EntityId != playerControlled.Entity.EntityId)
                     {
                         character = null;
                     }
                 }
                 
+                if(character == null && playerControlled.Entity is IMyCharacter)
+                {
+                    character = playerControlled.Entity;
+                    
+                    var obj = character.GetObjectBuilder(false) as MyObjectBuilder_Character;
+                    MyDefinitionManager.Static.Characters.TryGetValue(obj.CharacterModel, out characterDef);
+                }
+                 */
+                
+                if(playerControlled != null)
+                {
+                    if(playerControlled.Entity is IMyCharacter)
+                    {
+                        character = playerControlled.Entity;
+                    }
+                    else if(playerControlled.Entity is Ingame.IMyCockpit) // in a seat, certainly not gonna climb ladders
+                    {
+                        character = null;
+                    }
+                    // other cases depend on having the character controlled for a bit to get the reference
+                    else if(character != null && character.Closed)
+                    {
+                        character = null;
+                    }
+                }
+                else
+                {
+                    character = null;
+                }
+                
                 if(character != null)
                 {
-                    var charCtrl = character as IMyControllableEntity;
-                    
-                    if(charCtrl.EnabledThrusts || charCtrl.Entity.Physics == null)
-                    {
-                        ExitLadder(false); // leave ladder if jetpack is turned on
-                        return;
-                    }
-                    
-                    if(++skipPlanets >= 180)
+                    if(++skipPlanets >= 600)
                     {
                         skipPlanets = 0;
                         UpdatePlanets();
                     }
                     
+                    var charCtrl = character as IMyControllableEntity;
                     bool controllingCharacter = (playerControlled != null && playerControlled.Entity is IMyCharacter);
+                    IMyTerminalBlock ladder = null;
+                    MyCubeBlock ladderInternal = null;
+                    
+                    if(soundEmitter == null || soundEmitter.Entity == null || soundEmitter.Entity.EntityId != charCtrl.Entity.EntityId)
+                    {
+                        if(soundEmitter != null)
+                            soundEmitter.StopSound(true, true);
+                        
+                        soundEmitter = new MyEntity3DSoundEmitter(charCtrl as MyEntity);
+                    }
                     
                     MatrixD ladderMatrix = character.WorldMatrix; // temporarily using it for character matrix, then used for ladder matrix
-                    
-                    // this is set below the feet to not catch the ladder when walking by it and to have the jump-over functionality at the end of the ladder top
-                    var charPos = ladderMatrix.Translation + ladderMatrix.Down * 0.05;
-                    
-                    IMyTerminalBlock ladder = null;
+                    var charPos = ladderMatrix.Translation + ladderMatrix.Up * 0.05;
+                    var charPos2 = ladderMatrix.Translation + ladderMatrix.Up * RAY_HEIGHT;
+                    var charRay = new RayD(charPos, ladderMatrix.Up);
                     
                     if(dismounting <= 1) // relative top dismount sequence
                     {
@@ -377,14 +510,19 @@ namespace Digi.Ladder
                         }
                         
                         ladder = usingLadder;
+                        ladderInternal = ladder as MyCubeBlock;
                         dismounting *= ALIGN_MUL;
                         
                         ladderMatrix = ladder.WorldMatrix;
-                        var charOnLadder = ladderMatrix.Translation + ladderMatrix.Backward * (ladder.CubeGrid.GridSizeEnum == MyCubeSize.Large ? 0.55 : 0.4);
+                        var charOnLadder = ladderMatrix.Translation + ladderMatrix.Forward * (ladderInternal.BlockDefinition.ModelOffset.Z + EXTRA_OFFSET_Z);
+                        
+                        if(ladder.CubeGrid.GridSizeEnum == MyCubeSize.Large)
+                            charOnLadder += ladderMatrix.Backward;
                         
                         var topDir = Vector3D.Dot(character.WorldMatrix.Up, ladderMatrix.Up);
                         var matrix = character.WorldMatrix;
-                        matrix.Translation = charOnLadder + (topDir > 0 ? ladderMatrix.Up : ladderMatrix.Down) * 1.275f + ladderMatrix.Backward * 0.75;
+                        var halfY = ((ladderInternal.BlockDefinition.Size.Y * ladder.CubeGrid.GridSize) / 2);
+                        matrix.Translation = charOnLadder + (topDir > 0 ? ladderMatrix.Up : ladderMatrix.Down) * (halfY + 0.1f) + ladderMatrix.Backward * 0.75;
                         
                         character.SetWorldMatrix(MatrixD.SlerpScale(character.WorldMatrix, matrix, MathHelper.Clamp(dismounting, 0.0f, 1.0f)));
                         
@@ -392,11 +530,20 @@ namespace Digi.Ladder
                         
                         SetLadderStatus("Dismounting ladder...", MyFontEnum.White);
                         
+                        travelForSound += 3f;
+                        ComputeSound(charPos, 30);
+                        
                         if(dismounting > 1f)
                             ExitLadder(false);
                         
                         return;
                     }
+                    
+                    // UNDONE DEBUG
+                    //{
+                    //    var c = Color.Blue.ToVector4();
+                    //    MySimpleObjectDraw.DrawLine(charPos, charPos2, "WeaponLaserIgnoreDepth", ref c, 0.5f);
+                    //}
                     
                     // find a ladder
                     foreach(var l in ladders.Values)
@@ -406,47 +553,87 @@ namespace Digi.Ladder
                         
                         if(Vector3D.DistanceSquared(l.WorldMatrix.Translation, charPos) <= UPDATE_RADIUS)
                         {
+                            ladderInternal = l as MyCubeBlock;
                             ladderMatrix = l.WorldMatrix;
                             
                             // update ladder oriented box to find character in it accurately
                             Quaternion.CreateFromRotationMatrix(ref ladderMatrix, out ladderBox.Orientation);
-                            ladderBox.HalfExtent = (l.CubeGrid.GridSizeEnum == MyCubeSize.Large ? BOX_LARGE : BOX_SMALL);
-                            ladderBox.Center = ladderMatrix.Translation + ladderMatrix.Backward * (l.CubeGrid.GridSizeEnum == MyCubeSize.Large ? 0.75 : 0.4);
                             
-                            if(ladderBox.Contains(ref charPos))
+                            if(l is MyAdvancedDoor && !(l as MyAdvancedDoor).FullyOpen)
                             {
-                                // UNDONE DEBUG
-                                //if(debugBox == null)
-                                //{
-                                //    debugBox = new MyEntity();
-                                //    debugBox.Init(null, @"Models\Debug\Error.mwm", null, null, null);
-                                //    debugBox.PositionComp.LocalMatrix = Matrix.Identity;
-                                //    debugBox.Flags = EntityFlags.Visible | EntityFlags.NeedsDraw | EntityFlags.NeedsDrawFromParent | EntityFlags.InvalidateOnMove;
-                                //    debugBox.OnAddedToScene(null);
-                                //}
-                                //var matrix = MatrixD.CreateWorld(ladderBox.Center, ladderMatrix.Forward, ladderMatrix.Up);
-                                //var scale = ladderBox.HalfExtent * 2;
-                                //MatrixD.Rescale(ref matrix, ref scale);
-                                //debugBox.PositionComp.SetWorldMatrix(matrix);
+                                ladderBox.HalfExtent = (ladderInternal.BlockDefinition.Size * l.CubeGrid.GridSize) / 2;
                                 
-                                ladder = l;
-                                break;
+                                var offset = ladderInternal.BlockDefinition.ModelOffset;
+                                ladderBox.Center = ladderMatrix.Translation + ladderMatrix.Up * 1.125f + ladderMatrix.Forward * (offset.Z + EXTRA_OFFSET_Z);
+                                
+                                ladderBox.HalfExtent.Y = 0.25;
+                                ladderBox.HalfExtent.Z = 0.5;
+                                
+                                if(l.CubeGrid.GridSizeEnum == MyCubeSize.Large)
+                                    ladderBox.Center += ladderMatrix.Backward;
                             }
+                            else
+                            {
+                                ladderBox.HalfExtent = (ladderInternal.BlockDefinition.Size * l.CubeGrid.GridSize) / 2;
+                                ladderBox.HalfExtent.Z = 0.5;
+                                
+                                var offset = ladderInternal.BlockDefinition.ModelOffset;
+                                ladderBox.Center = ladderMatrix.Translation + ladderMatrix.Forward * (offset.Z + EXTRA_OFFSET_Z);
+                                
+                                if(l.CubeGrid.GridSizeEnum == MyCubeSize.Large)
+                                    ladderBox.Center += ladderMatrix.Backward;
+                            }
+                            
+                            if(!ladderBox.Contains(ref charPos) && !ladderBox.Contains(ref charPos2))
+                            {
+                                var intersect = ladderBox.Intersects(ref charRay);
+                                
+                                if(!intersect.HasValue || intersect.Value < 0 || intersect.Value > RAY_HEIGHT)
+                                    continue;
+                            }
+                            
+                            // UNDONE DEBUG
+                            //{
+                            //    {
+                            //        var c = Color.Red.ToVector4();
+                            //        MySimpleObjectDraw.DrawLine(ladderBox.Center + ladderMatrix.Down * ladderBox.HalfExtent.Y, ladderBox.Center + ladderMatrix.Up * ladderBox.HalfExtent.Y, "WeaponLaserIgnoreDepth", ref c, 0.01f);
+                            //    }
+                            //
+                            //    if(debugBox == null)
+                            //    {
+                            //        debugBox = new MyEntity();
+                            //        debugBox.Init(null, @"Models\Debug\Error.mwm", null, null, null);
+                            //        debugBox.PositionComp.LocalMatrix = Matrix.Identity;
+                            //        debugBox.Flags = EntityFlags.Visible | EntityFlags.NeedsDraw | EntityFlags.NeedsDrawFromParent | EntityFlags.InvalidateOnMove;
+                            //        debugBox.OnAddedToScene(null);
+                            //        debugBox.Render.Transparency = 0.5f;
+                            //        debugBox.Render.RemoveRenderObjects();
+                            //        debugBox.Render.AddRenderObjects();
+                            //    }
+                            //    var matrix = MatrixD.CreateWorld(ladderBox.Center, ladderMatrix.Forward, ladderMatrix.Up);
+                            //    var scale = ladderBox.HalfExtent * 2;
+                            //    MatrixD.Rescale(ref matrix, ref scale);
+                            //    debugBox.PositionComp.SetWorldMatrix(matrix);
+                            //}
+                            
+                            ladder = l;
+                            ladderInternal = l as MyCubeBlock;
+                            break;
                         }
                     }
                     
                     if(ladder != null)
                     {
-                        var charOnLadder = ladderMatrix.Translation + ladderMatrix.Backward * (ladder.CubeGrid.GridSizeEnum == MyCubeSize.Large ? 0.55 : 0.4);
+                        var offset = ladderInternal.BlockDefinition.ModelOffset;
+                        var charOnLadder = ladderMatrix.Translation + ladderMatrix.Forward * (offset.Z + EXTRA_OFFSET_Z);
                         
-                        if(usingLadder == null) // first ladder interaction
+                        if(ladder.CubeGrid.GridSizeEnum == MyCubeSize.Large)
+                            charOnLadder += ladderMatrix.Backward;
+                        
+                        if(++skipRetryGravity >= GRAVITY_UPDATERATE)
                         {
-                            if(skipRetryGravity > 0)
-                            {
-                                if(--skipRetryGravity > 0)
-                                    return;
-                            }
-                            
+                            skipRetryGravity = 0;
+                            alignedToGravity = true;
                             gravity = GetGravityVector(character.WorldMatrix.Translation);
                             
                             if(gravity.LengthSquared() > 0)
@@ -455,18 +642,72 @@ namespace Digi.Ladder
                                 
                                 if(!(gravDot >= 0.9f || gravDot <= -0.9f))
                                 {
-                                    skipRetryGravity = 15; // re-check gravity every this amount of ticks
-                                    SetLadderStatus("Gravity not parallel to ladder!", MyFontEnum.Red, 300);
+                                    alignedToGravity = false;
+                                }
+                            }
+                        }
+                        
+                        if(!alignedToGravity)
+                        {
+                            SetLadderStatus("Gravity not parallel to ladder!", MyFontEnum.Red, 2000);
+                            
+                            if(usingLadder != null)
+                                ExitLadder(false);
+                            
+                            return;
+                        }
+                        
+                        bool readInput = MyGuiScreenGamePlay.ActiveGameplayScreen == null;
+                        
+                        if(usingLadder == null) // first ladder interaction
+                        {
+                            //var controlUse = MyAPIGateway.Input.GetGameControl(MyControlsSpace.USE);
+                            //
+                            //if(!controlUse.IsPressed())
+                            //{
+                            //    string assigned = (controlUse.GetKeyboardControl() != MyKeys.None ? MyAPIGateway.Input.GetKeyName(controlUse.GetKeyboardControl()) : (controlUse.GetMouseControl() != MyMouseButtonsEnum.None ? MyAPIGateway.Input.GetName(controlUse.GetMouseControl()) : "(NONE)")) + (controlUse.GetSecondKeyboardControl() != MyKeys.None ? " or " + MyAPIGateway.Input.GetKeyName(controlUse.GetSecondKeyboardControl()) : null);
+                            //    SetLadderStatus("Press "+assigned+" to use the ladder.", MyFontEnum.White);
+                            //    return;
+                            //}
+                            
+                            if(grabOnLoad)
+                            {
+                                grabOnLoad = false;
+                            }
+                            else
+                            {
+                                if(settings.useLadder1 == null && settings.useLadder2 == null)
+                                {
+                                    SetLadderStatus("Ladder interaction is unassigned! Edit the settings.cfg file!", MyFontEnum.Red);
+                                    return;
+                                }
+                                
+                                bool use1 = (settings.useLadder1 != null ? readInput && settings.useLadder1.IsPressed() : false);
+                                bool use2 = (settings.useLadder2 != null ? readInput && settings.useLadder2.IsPressed() : false);
+                                
+                                if(!use1 && !use2)
+                                {
+                                    StringBuilder assigned = new StringBuilder();
+                                    
+                                    if(settings.useLadder1 != null)
+                                        assigned.Append(settings.useLadder1.GetFriendlyString());
+                                    
+                                    if(settings.useLadder2 != null)
+                                    {
+                                        if(assigned.Length > 0)
+                                            assigned.Append(" or ");
+                                        
+                                        assigned.Append(settings.useLadder2.GetFriendlyString());
+                                    }
+                                    
+                                    SetLadderStatus("Press "+assigned+" to use the ladder.", MyFontEnum.White);
                                     return;
                                 }
                             }
                             
                             skipRefreshAnim = 60;
-                            
+                            travelForSound = 0;
                             mounting = (controllingCharacter ? ALIGN_STEP : 2);
-                            
-                            initialDampeners = charCtrl.EnabledDamping;
-                            controlMode = controllingCharacter;
                             
                             LadderAnim(character, LadderAnimation.MOUNTING);
                         }
@@ -474,15 +715,24 @@ namespace Digi.Ladder
                         if(usingLadder != ladder)
                             usingLadder = ladder;
                         
-                        if(charCtrl.EnabledDamping != initialDampeners)
+                        if(charCtrl.Entity.Physics == null)
                         {
-                            charCtrl.SwitchDamping();
-                            controlMode = !controlMode;
+                            ExitLadder(false);
+                            return;
+                        }
+                        
+                        if(readInput)
+                        {
+                            var controlCrouch = MyAPIGateway.Input.GetGameControl(MyControlsSpace.CROUCH);
                             
-                            SetLadderStatus("Ladder control: "+(controlMode ? "On" : "Off"), MyFontEnum.White, 2000);
-                            
-                            if(!learned[3])
-                                learned[3] = true;
+                            if(controlCrouch.IsPressed())
+                            {
+                                if(!learned[4])
+                                    learned[4] = true;
+                                
+                                ExitLadder(false);
+                                return;
+                            }
                         }
                         
                         character.Physics.LinearVelocity = ladder.CubeGrid.Physics.GetVelocityAtPoint(character.WorldMatrix.Translation); // sync velocity with the ladder
@@ -509,19 +759,39 @@ namespace Digi.Ladder
                             
                             character.SetWorldMatrix(MatrixD.SlerpScale(character.WorldMatrix, matrix, MathHelper.Clamp(mounting, 0.0f, 1.0f)));
                             
+                            if(mounting >= 0.75f && charCtrl.EnabledThrusts) // delayed turning off thrusts because gravity aligns you faster and can make you fail to attach to the ladder
+                                charCtrl.SwitchThrusts();
+                            
+                            travelForSound += 3f;
+                            ComputeSound(charPos, 30);
+                            
                             SetLadderStatus("Mounting ladder...", MyFontEnum.White);
                             return;
                         }
                         
-                        var view = MyAPIGateway.Session.ControlledObject.GetHeadMatrix(false, true);
-                        float alignSide = Vector3.Dot(ladderMatrix.Backward, view.Forward);
-                        float alignVertical = Vector3.Dot(ladderMatrix.Up, view.Forward);
+                        // TODO jetpack assited climb/descend ?
+                        // TODO gravity assisted descend ?
+                        
+                        if(charCtrl.EnabledThrusts)
+                        {
+                            if(!learned[4])
+                                learned[4] = true;
+                            
+                            ExitLadder(false); // leave ladder if jetpack is turned on
+                            return;
+                        }
+                        
+                        if(!controllingCharacter) // disable ladder control if not controlling character
+                            readInput = false;
                         
                         bool movingAway = false;
+                        float move = readInput ? MyAPIGateway.Input.GetGameControlAnalogState(MyControlsSpace.FORWARD) - MyAPIGateway.Input.GetGameControlAnalogState(MyControlsSpace.BACKWARD) : 0;
+                        float side = readInput ? MyAPIGateway.Input.GetGameControlAnalogState(MyControlsSpace.STRAFE_RIGHT) - MyAPIGateway.Input.GetGameControlAnalogState(MyControlsSpace.STRAFE_LEFT) : 0;
+                        var alignVertical = ladderMatrix.Up.Dot(character.WorldMatrix.Up);
                         
                         if(!loadedAllLearned)
                         {
-                            bool allLearned = (learned[0] && learned[1] && learned[2] && learned[3]);
+                            bool allLearned = (learned[0] && learned[1] && learned[2] && learned[3] && learned[4]);
                             
                             for(int i = 0; i < learned.Length; i++)
                             {
@@ -541,91 +811,115 @@ namespace Digi.Ladder
                             }
                         }
                         
-                        if(!controllingCharacter) // disable ladder control if not controlling character
-                            controlMode = false;
-                        
-                        if(controlMode)
+                        if(readInput && MyAPIGateway.Input.IsGameControlPressed(MyControlsSpace.JUMP))
                         {
-                            if(alignVertical >= 0.8f || alignVertical <= -0.8f) // ignore left/right if looking up/down really far
-                                alignSide = 1;
+                            character.Physics.LinearVelocity += character.WorldMatrix.Forward * 300 * TICKRATE;
                             
-                            if(alignSide < 0.12f)
-                            {
-                                float sideDot = Vector3.Dot(view.Forward, ladderMatrix.Left);
-                                
-                                if(alignSide <= -0.8) // aim away from ladder to jump
-                                {
-                                    character.Physics.LinearVelocity += ladderMatrix.Forward * 300 * TICKRATE;
-                                    
-                                    LadderAnim(character, LadderAnimation.JUMP_OFF);
-                                    movingAway = true;
-                                    
-                                    if(!learned[2])
-                                        learned[2] = true;
-                                }
-                                else // aim left/right to dismount
-                                {
-                                    character.Physics.LinearVelocity += (sideDot > 0 ? ladderMatrix.Left : ladderMatrix.Right) * 200 * TICKRATE;
-                                    
-                                    LadderAnim(character, (sideDot > 0 ? LadderAnimation.DISMOUNT_LEFT : LadderAnimation.DISMOUNT_RIGHT));
-                                    movingAway = true;
-                                    
-                                    if(!learned[1])
-                                        learned[1] = true;
-                                }
-                            }
-                            else // not dismounting left/right, centering
-                            {
-                                Vector3 dir = charOnLadder - charPos;
-                                Vector3 vel = dir - (ladderMatrix.Up * Vector3D.Dot(dir, ladderMatrix.Up)); // projecting up/down direction to ignore it
-                                
-                                if(vel.LengthSquared() >= 0.005f)
-                                {
-                                    character.Physics.LinearVelocity += vel * 300 * TICKRATE;
-                                }
-                            }
+                            LadderAnim(character, LadderAnimation.JUMP_OFF);
                             
-                            // climb relative up/down or dismount relative up
-                            if(alignVertical > 0.3f || alignVertical < -0.3f)
+                            if(!learned[3])
+                                learned[3] = true;
+                            
+                            travelForSound = 1;
+                            ComputeSound(charPos, 0);
+                            
+                            ExitLadder(false);
+                            return;
+                        }
+                        else if(side != 0)
+                        {
+                            var alignForward = ladderMatrix.Backward.Dot(character.WorldMatrix.Forward);
+                            
+                            if(alignForward < 0)
+                                side = -side;
+                            
+                            character.Physics.LinearVelocity += side * (alignVertical > 0 ? ladderMatrix.Left : ladderMatrix.Right) * 100 * TICKRATE;
+                            travelForSound += (float)Math.Round(Math.Abs(side) * 100 * TICKRATE, 5);
+                            
+                            LadderAnim(character, (side > 0 ? LadderAnimation.DISMOUNT_LEFT : LadderAnimation.DISMOUNT_RIGHT));
+                            movingAway = true;
+                            
+                            if(!learned[2])
+                                learned[2] = true;
+                        }
+                        else
+                        {
+                            // aligning player to ladder
+                            Vector3 dir = charOnLadder - charPos;
+                            Vector3 vel = dir - (ladderMatrix.Up * Vector3D.Dot(dir, ladderMatrix.Up)); // projecting up/down direction to ignore it
+                            
+                            if(vel.LengthSquared() >= 0.005f)
                             {
-                                var edge = charOnLadder + ((alignVertical > 0 ? ladderMatrix.Up : ladderMatrix.Down) * 1.25f);
-                                float lookUp = Vector3.Dot(character.WorldMatrix.Up, view.Forward);
-                                
-                                // climb over at the end when climbing up
-                                if(lookUp > 0 && Vector3D.DistanceSquared(charPos, edge) <= (0.25 * 0.25))
-                                {
-                                    var ladderInternal = ladder as MyCubeBlock;
-                                    var offset = -Vector3.TransformNormal(ladderInternal.BlockDefinition.ModelOffset, ladderMatrix); // WorldMatrix.Translation takes ModelOffset into account
-                                    var nextBlockWorldPos = ladderMatrix.Translation + offset + ((alignVertical > 0 ? ladderMatrix.Up : ladderMatrix.Down) * 1.3f);
-                                    var nextBlockPos = ladder.CubeGrid.WorldToGridInteger(nextBlockWorldPos);
-                                    var slim = ladder.CubeGrid.GetCubeBlock(nextBlockPos);
-                                    
-                                    if(slim == null || !(slim.FatBlock is IMyTerminalBlock) || !LadderBlock.ladderIds.Contains(slim.FatBlock.BlockDefinition.SubtypeId))
-                                    {
-                                        dismounting = ALIGN_STEP;
-                                        return;
-                                    }
-                                }
-                                
-                                character.Physics.LinearVelocity += (alignVertical > 0 ? ladderMatrix.Up : ladderMatrix.Down) * 200 * TICKRATE;
-                                
-                                if(!movingAway)
-                                    LadderAnim(character, (lookUp > 0 ? LadderAnimation.UP : LadderAnimation.DOWN));
-                                
-                                if(!learned[0])
-                                    learned[0] = true;
-                            }
-                            else // standing
-                            {
-                                if(!movingAway)
-                                    LadderAnim(character, LadderAnimation.IDLE);
+                                character.Physics.LinearVelocity += vel * 100 * TICKRATE;
+                                travelForSound += (float)Math.Round(Math.Abs(side) * 100 * TICKRATE, 5);
                             }
                         }
-                        else // standing, no control
+                        
+                        var view = MyAPIGateway.Session.ControlledObject.GetHeadMatrix(false, true);
+                        float lookVertical = Vector3.Dot(character.WorldMatrix.Up, view.Forward);
+                        float verticalModifier = MathHelper.Clamp((lookVertical + 0.65f) / 0.5f, -0.5f, 1.0f);
+                        
+                        if(verticalModifier < 0)
+                            verticalModifier *= 2;
+                        
+                        move = (float)Math.Round(move * verticalModifier, 3);
+                        
+                        if(move != 0)
+                        {
+                            if(!learned[0])
+                                learned[0] = true;
+                            
+                            var halfY = ((ladderInternal.BlockDefinition.Size.Y * ladder.CubeGrid.GridSize) / 2);
+                            var edge = charOnLadder + ((alignVertical > 0 ? ladderMatrix.Up : ladderMatrix.Down) * halfY);
+                            
+                            // climb over at the end when climbing up
+                            if(move > 0 && Vector3D.DistanceSquared(charPos, edge) <= (0.25 * 0.25))
+                            {
+                                var nextBlockWorldPos = ladderMatrix.Translation + ladderMatrix.Forward * offset.Z + ((alignVertical > 0 ? ladderMatrix.Up : ladderMatrix.Down) * (halfY + 0.1f));
+                                var nextBlockPos = ladder.CubeGrid.WorldToGridInteger(nextBlockWorldPos);
+                                var slim = ladder.CubeGrid.GetCubeBlock(nextBlockPos);
+                                
+                                if(slim == null || !(slim.FatBlock is IMyTerminalBlock) || !LadderBlock.ladderIds.Contains(slim.FatBlock.BlockDefinition.SubtypeId))
+                                {
+                                    dismounting = ALIGN_STEP;
+                                    travelForSound = 0;
+                                    return;
+                                }
+                            }
+                            
+                            // on the floor and moving backwards makes you dismount
+                            if(move < 0 && MyHud.CharacterInfo.State == MyHudCharacterStateEnum.Standing)
+                            {
+                                travelForSound = 1;
+                                ComputeSound(charPos, 0);
+                                ExitLadder(false);
+                                return;
+                            }
+                            
+                            if(move != 0)
+                            {
+                                // TODO check if character has jetpack
+                                // TODO use character definition stats?
+                                
+                                float speed = 120f + (MyAPIGateway.Input.GetGameControlAnalogState(MyControlsSpace.SPRINT) * 80f);
+                                
+                                if(!learned[1] && speed > 140)
+                                    learned[1] = true;
+                                
+                                character.Physics.LinearVelocity += (alignVertical > 0 ? ladderMatrix.Up : ladderMatrix.Down) * move * speed * TICKRATE;
+                                
+                                travelForSound += (float)Math.Round(Math.Abs(move) * speed * TICKRATE, 5);
+                                
+                                if(!movingAway)
+                                    LadderAnim(character, (move > 0 ? LadderAnimation.UP : LadderAnimation.DOWN));
+                            }
+                        }
+                        else if(!movingAway)
                         {
                             LadderAnim(character, LadderAnimation.IDLE);
                         }
                         
+                        ComputeSound(charPos, movingAway ? 60 : 45);
                         return;
                     }
                 }
@@ -638,12 +932,38 @@ namespace Digi.Ladder
             }
         }
         
+        private void ComputeSound(Vector3D position, int targetTick = 45)
+        {
+            if(travelForSound >= targetTick)
+            {
+                travelForSound = 0;
+                soundEmitter.PlaySound(soundStep, true, false, false);
+                
+                var myId = MyAPIGateway.Multiplayer.MyId;
+                var bytes = encode.GetBytes(character.EntityId.ToString());
+                MyAPIGateway.Players.GetPlayers(players, delegate(IMyPlayer p)
+                                                {
+                                                    if(p.SteamUserId != myId && Vector3D.DistanceSquared(p.GetPosition(), position) <= PACKET_RANGE_SQ)
+                                                    {
+                                                        MyAPIGateway.Multiplayer.SendMessageTo(PACKET, bytes, p.SteamUserId, false);
+                                                    }
+                                                    
+                                                    return false;
+                                                });
+            }
+        }
+        
         private void ExitLadder(bool setFreeFallAnimation = true)
         {
+            if(grabOnLoad)
+                grabOnLoad = false;
+            
             if(usingLadder == null)
                 return;
             
             usingLadder = null;
+            alignedToGravity = false;
+            skipRetryGravity = GRAVITY_UPDATERATE;
             
             if(MyAPIGateway.Session.ControlledObject is IMyCharacter && setFreeFallAnimation && character != null && lastLadderAnim != LadderAnimation.NONE)
             {
@@ -672,17 +992,53 @@ namespace Digi.Ladder
                                    BlendTime = 0.1f,
                                }, true);
         }
+        
+        public void MessageEntered(string msg, ref bool send)
+        {
+            try
+            {
+                if(msg.StartsWith("/ladder", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    send = false;
+                    msg = msg.Substring("/ladder".Length).Trim().ToLower();
+                    
+                    if(msg.Equals("reload"))
+                    {
+                        if(settings.Load())
+                            MyAPIGateway.Utilities.ShowMessage(Log.MOD_NAME, "Reloaded and re-saved config.");
+                        else
+                            MyAPIGateway.Utilities.ShowMessage(Log.MOD_NAME, "Config created with the current settings.");
+                        
+                        settings.Save();
+                        return;
+                    }
+                    
+                    MyAPIGateway.Utilities.ShowMessage(Log.MOD_NAME, "Available commands:");
+                    MyAPIGateway.Utilities.ShowMessage("/ladder reload ", "reloads the config file.");
+                }
+            }
+            catch(Exception e)
+            {
+                Log.Error(e);
+            }
+        }
     }
-    
-    // TODO retractable ladder?
-    // TODO one unit height ladder for smallship?
-    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_TerminalBlock), "LargeShipUsableLadder", "SmallShipUsableLadder")]
-    public class LadderBlock : MyGameLogicComponent
+
+    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_AdvancedDoor), "LargeShipUsableLadderRetractable", "SmallShipUsableLadderRetractable")]
+    public class LadderRetractable : LadderLogic { }
+
+    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_TerminalBlock), "LargeShipUsableLadder", "SmallShipUsableLadder", "SmallShipUsableLadderSegment")]
+    public class LadderBlock : LadderLogic { }
+
+    public class LadderLogic : MyGameLogicComponent
     {
         public static readonly HashSet<string> ladderIds = new HashSet<string>()
         {
             "LargeShipUsableLadder",
-            "SmallShipUsableLadder"
+            "SmallShipUsableLadder",
+            "SmallShipUsableLadderSegment",
+            "LargeShipUsableLadderRetractable",
+            "SmallShipUsableLadderRetractable"
         };
         
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
@@ -697,8 +1053,11 @@ namespace Digi.Ladder
             if(block.CubeGrid.Physics == null)
                 return;
             
-            block.SetValueBool("ShowInTerminal", false);
-            block.SetValueBool("ShowInToolbarConfig", false);
+            if(block.BlockDefinition.TypeId != typeof(MyObjectBuilder_AdvancedDoor))
+            {
+                block.SetValueBool("ShowInTerminal", false);
+                block.SetValueBool("ShowInToolbarConfig", false);
+            }
             
             LadderMod.ladders.Add(Entity.EntityId, block);
         }
@@ -713,13 +1072,13 @@ namespace Digi.Ladder
             return Entity.GetObjectBuilder(copy);
         }
     }
-    
+
     [MyEntityComponentDescriptor(typeof(MyObjectBuilder_GravityGenerator))]
     public class GravityGeneratorFlat : GravityGeneratorLogic { }
-    
+
     [MyEntityComponentDescriptor(typeof(MyObjectBuilder_GravityGeneratorSphere))]
     public class GravityGeneratorSphere : GravityGeneratorLogic { }
-    
+
     public class GravityGeneratorLogic : MyGameLogicComponent
     {
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
@@ -729,7 +1088,7 @@ namespace Digi.Ladder
         
         public override void UpdateOnceBeforeFrame()
         {
-            var block = Entity as Ingame.IMyGravityGeneratorBase;
+            var block = Entity as IMyGravityGeneratorBase;
             
             if(block.CubeGrid.Physics == null)
                 return;

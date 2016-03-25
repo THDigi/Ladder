@@ -73,6 +73,7 @@
   <ItemGroup>
     <Compile Include="Log.cs" />
     <Compile Include="Ladder.cs" />
+    <Compile Include="Settings.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
