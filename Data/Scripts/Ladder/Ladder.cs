@@ -209,9 +209,11 @@ namespace Digi.Ladder
             {
                 settings = new Settings();
                 
-                if(settings != null && settings.onLadderWorlds.Count > 0 && settings.onLadderWorlds.Contains(MyAPIGateway.Session.Name.ToLower()))
+                string worldVariables;
+                
+                if(MyAPIGateway.Utilities.GetVariable("LadderMod", out worldVariables))
                 {
-                    grabOnLoad = true;
+                    grabOnLoad = worldVariables.Contains("grabonload");
                 }
                 
                 if(MyAPIGateway.Multiplayer.IsServer)
@@ -311,22 +313,13 @@ namespace Digi.Ladder
             {
                 if(!isDedicated)
                 {
-                    if(settings == null)
+                    if(usingLadder != null)
                     {
-                        Log.Error("SaveData() :: Settings didn't initialize!");
-                        return;
+                        MyAPIGateway.Utilities.SetVariable("LadderMod", "grabonload");
                     }
-                    
-                    string worldName = MyAPIGateway.Session.Name.ToLower();
-                    
-                    if(usingLadder != null != settings.onLadderWorlds.Contains(worldName))
+                    else
                     {
-                        if(usingLadder != null)
-                            settings.onLadderWorlds.Add(worldName);
-                        else
-                            settings.onLadderWorlds.Remove(worldName);
-                        
-                        settings.Save();
+                        MyAPIUtilities.Static.Variables.Remove("LadderMod");
                     }
                 }
             }

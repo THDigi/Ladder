@@ -32,7 +32,6 @@ namespace Digi.Ladder
         public ControlCombination useLadder1 = ControlCombination.CreateFrom(InputHandler.CONTROL_PREFIX+"use");
         public ControlCombination useLadder2 = ControlCombination.CreateFrom(InputHandler.GAMEPAD_PREFIX+"x");
         public bool clientPrediction = true; // TODO temporary?
-        public HashSet<string> onLadderWorlds = new HashSet<string>();
         
         private static char[] CHARS = new char[] { '=' };
         
@@ -118,9 +117,6 @@ namespace Digi.Ladder
                             }
                             else
                                 Log.Error("Invalid "+args[0]+" value: " + args[1]);
-                            continue;
-                        case "onladderworlds":
-                            onLadderWorlds = new HashSet<string>(args[1].Split('/'));
                             continue;
                         case "clientprediction":
                             if(bool.TryParse(args[1], out b))
@@ -229,11 +225,6 @@ namespace Digi.Ladder
             }
             
             str.Append("ClientPrediction=").Append(clientPrediction).AppendLine(comments ? " // toggle client movement prediction, only affects you and only if you're a client in a MP server, default: true" : "");
-            
-            if(comments)
-                str.AppendLine().AppendLine().AppendLine();
-            
-            str.Append("OnLadderWorlds=").Append(String.Join("/", onLadderWorlds)).AppendLine(comments ? " // DO NOT EDIT, list of worlds where you saved while on a ladder, separated by /" : "");
             
             return str.ToString();
         }
