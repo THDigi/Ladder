@@ -15,7 +15,7 @@
       <Size x="1" y="1" z="1" />
       <ModelOffset x="0" y="0" z="0" />
       <Model>Models\Ladder.mwm</Model>
-      <UseModelIntersection>true</UseModelIntersection>
+      <UseModelIntersection>false</UseModelIntersection>
       <Components>
         <Component Subtype="Construction" Count="6" />
         <Component Subtype="SmallTube" Count="10" />
@@ -145,7 +145,7 @@
       <Size x="1" y="1" z="1" />
       <ModelOffset x="0" y="0" z="0" />
       <Model>Models\LadderRetractable.mwm</Model>
-      <UseModelIntersection>true</UseModelIntersection>
+      <UseModelIntersection>false</UseModelIntersection>
       <Components>
         <Component Subtype="Construction" Count="10" />
         <Component Subtype="SmallTube" Count="10" />

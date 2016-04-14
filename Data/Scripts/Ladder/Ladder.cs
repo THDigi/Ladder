@@ -114,6 +114,8 @@ namespace Digi.Ladder
         private bool alignedToGravity = false;
         private bool grabOnLoad = false;
         
+        private MyCubeBlockDefinition prevCubeBuilderDefinition = null;
+        
         public Settings settings = null;
         
         //private MyEntity debugBox = null; // UNDONE DEBUG
@@ -338,31 +340,39 @@ namespace Digi.Ladder
         {
             try
             {
-                init = false;
-                ladders.Clear();
-                planets.Clear();
-                gravityGenerators.Clear();
-                
-                if(MyAPIGateway.Multiplayer.IsServer)
+                if(init)
                 {
-                    MyAPIGateway.Multiplayer.UnregisterMessageHandler(PACKET_LADDERDATA, ReceivedLadderDataPacket);
+                    init = false;
+                    ladders.Clear();
+                    planets.Clear();
+                    gravityGenerators.Clear();
                     
-                    playersOnLadder.Clear();
-                    playersOnLadder = null;
-                }
-                
-                if(!isDedicated)
-                {
-                    MyAPIGateway.Utilities.MessageEntered -= MessageEntered;
-                    MyAPIGateway.Multiplayer.UnregisterMessageHandler(PACKET_STEP, ReceivedStepPacket);
-                    
-                    if(settings != null)
+                    if(MyAPIGateway.Multiplayer.IsServer)
                     {
-                        settings.Close();
-                        settings = null;
+                        MyAPIGateway.Multiplayer.UnregisterMessageHandler(PACKET_LADDERDATA, ReceivedLadderDataPacket);
+                        
+                        if(playersOnLadder != null)
+                        {
+                            playersOnLadder.Clear();
+                            playersOnLadder = null;
+                        }
                     }
                     
-                    SaveLearn();
+                    if(!isDedicated)
+                    {
+                        MyAPIGateway.Utilities.MessageEntered -= MessageEntered;
+                        MyAPIGateway.Multiplayer.UnregisterMessageHandler(PACKET_STEP, ReceivedStepPacket);
+                        
+                        if(settings != null)
+                        {
+                            settings.Close();
+                            settings = null;
+                        }
+                        
+                        SaveLearn();
+                    }
+                    
+                    Log.Info("Mod unloaded.");
                 }
             }
             catch(Exception e)
@@ -370,7 +380,6 @@ namespace Digi.Ladder
                 Log.Error(e);
             }
             
-            Log.Info("Mod unloaded.");
             Log.Close();
         }
         
@@ -638,7 +647,7 @@ namespace Digi.Ladder
                 
                 if(MyAPIGateway.Multiplayer.IsServer && playersOnLadder != null && playersOnLadder.Count > 0)
                 {
-                    foreach(var kv in playersOnLadder)
+                    foreach(var kv in playersOnLadder) // server side loop for ladder movement
                     {
                         var ld = kv.Value;
                         
@@ -693,7 +702,7 @@ namespace Digi.Ladder
                                         }
                                     }
                                     
-                                    ld.StepSound(ld.side != 0 ? 60 : 45);
+                                    ld.StepSound(60);
                                     break;
                                 }
                             case LadderAction.MOUNT:
@@ -776,7 +785,7 @@ namespace Digi.Ladder
                     }
                 }
                 
-                if(isDedicated)
+                if(isDedicated) // player's side from here on
                     return;
                 
                 var playerControlled = MyAPIGateway.Session.ControlledObject;
@@ -808,6 +817,24 @@ namespace Digi.Ladder
                     {
                         skipPlanets = 0;
                         UpdatePlanets();
+                    }
+                    
+                    var cb = MyAPIGateway.CubeBuilder as MyCubeBuilder;
+                    
+                    // Dynamically enable/disable UseModelIntersection on ladder blocks that you hold to have the useful effect
+                    // of being able the block when another entity is blocking the grid space but not the blocks's physical shape.
+                    // This will still have the side effect issue if you aim at a ladder block with the same ladder block.
+                    if(cb.IsActivated && cb.HudBlockDefinition != null && LadderLogic.ladderIds.Contains(cb.HudBlockDefinition.Id.SubtypeName))
+                    {
+                        if(!cb.HudBlockDefinition.UseModelIntersection)
+                        {
+                            prevCubeBuilderDefinition = cb.HudBlockDefinition;
+                            cb.HudBlockDefinition.UseModelIntersection = true;
+                        }
+                    }
+                    else if(prevCubeBuilderDefinition != null)
+                    {
+                        prevCubeBuilderDefinition.UseModelIntersection = false;
                     }
                     
                     var charCtrl = character as IMyControllableEntity;
@@ -1004,8 +1031,8 @@ namespace Digi.Ladder
                                 }
                                 else
                                 {
-                                    bool use1 = (settings.useLadder1 != null ? readInput && settings.useLadder1.AllPressed() : false);
-                                    bool use2 = (settings.useLadder2 != null ? readInput && settings.useLadder2.AllPressed() : false);
+                                    bool use1 = (readInput && settings.useLadder1 != null && settings.useLadder1.AllPressed());
+                                    bool use2 = (readInput && settings.useLadder2 != null && settings.useLadder2.AllPressed());
                                     
                                     if(!use1 && !use2)
                                     {
@@ -1415,13 +1442,13 @@ namespace Digi.Ladder
             }
         }
     }
-
+    
     [MyEntityComponentDescriptor(typeof(MyObjectBuilder_AdvancedDoor), "LargeShipUsableLadderRetractable", "SmallShipUsableLadderRetractable")]
     public class LadderRetractable : LadderLogic { }
-
+    
     [MyEntityComponentDescriptor(typeof(MyObjectBuilder_TerminalBlock), "LargeShipUsableLadder", "SmallShipUsableLadder", "SmallShipUsableLadderSegment")]
     public class LadderBlock : LadderLogic { }
-
+    
     public class LadderLogic : MyGameLogicComponent
     {
         public static readonly HashSet<string> ladderIds = new HashSet<string>()
@@ -1464,13 +1491,13 @@ namespace Digi.Ladder
             return Entity.GetObjectBuilder(copy);
         }
     }
-
+    
     [MyEntityComponentDescriptor(typeof(MyObjectBuilder_GravityGenerator))]
     public class GravityGeneratorFlat : GravityGeneratorLogic { }
-
+    
     [MyEntityComponentDescriptor(typeof(MyObjectBuilder_GravityGeneratorSphere))]
     public class GravityGeneratorSphere : GravityGeneratorLogic { }
-
+    
     public class GravityGeneratorLogic : MyGameLogicComponent
     {
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
