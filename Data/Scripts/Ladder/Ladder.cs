@@ -819,8 +819,11 @@ namespace Digi.Ladder
                     // This will still have the side effect issue if you aim at a ladder block with the same ladder block.
                     if(cb.IsActivated && cb.HudBlockDefinition != null && LadderLogic.ladderIds.Contains(cb.HudBlockDefinition.Id.SubtypeName))
                     {
-                        if(!cb.HudBlockDefinition.UseModelIntersection)
+                        if(prevCubeBuilderDefinition == null || prevCubeBuilderDefinition.Id != cb.HudBlockDefinition.Id)
                         {
+                            if(prevCubeBuilderDefinition != null)
+                                prevCubeBuilderDefinition.UseModelIntersection = false;
+                            
                             prevCubeBuilderDefinition = cb.HudBlockDefinition;
                             cb.HudBlockDefinition.UseModelIntersection = true;
                         }
@@ -828,6 +831,7 @@ namespace Digi.Ladder
                     else if(prevCubeBuilderDefinition != null)
                     {
                         prevCubeBuilderDefinition.UseModelIntersection = false;
+                        prevCubeBuilderDefinition = null;
                     }
                     
                     var charCtrl = character as IMyControllableEntity;
