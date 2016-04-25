@@ -704,7 +704,6 @@ namespace Digi.Ladder
                                     
                                     var ladderMatrix = ld.ladder.WorldMatrix;
                                     var ladderInternal = ld.ladder as MyCubeBlock;
-                                    
                                     var charOnLadder = ladderMatrix.Translation + ladderMatrix.Forward * (ladderInternal.BlockDefinition.ModelOffset.Z + EXTRA_OFFSET_Z);
                                     
                                     if(ld.ladder.CubeGrid.GridSizeEnum == MyCubeSize.Large)
@@ -713,11 +712,16 @@ namespace Digi.Ladder
                                     float align = Vector3.Dot(ladderMatrix.Up, ld.character.WorldMatrix.Up);
                                     
                                     var matrix = MatrixD.CreateFromDir(ladderMatrix.Backward, (align > 0 ? ladderMatrix.Up : ladderMatrix.Down));
+                                    var halfY = ((ladderInternal.BlockDefinition.Size.Y * ld.ladder.CubeGrid.GridSize) / 2);
+                                    var diff = Vector3D.Dot(ld.character.WorldMatrix.Translation, ladderMatrix.Up) - Vector3D.Dot(charOnLadder, ladderMatrix.Up);
+                                    matrix.Translation = charOnLadder + ladderMatrix.Up * MathHelper.Clamp(diff, -halfY, halfY);
                                     
-                                    var vC = ld.character.WorldMatrix.Translation;
-                                    vC = vC - (ladderMatrix.Forward * Vector3D.Dot(vC, ladderMatrix.Forward)) - (ladderMatrix.Left * Vector3D.Dot(vC, ladderMatrix.Left));
-                                    var vL = charOnLadder - (ladderMatrix.Up * Vector3D.Dot(charOnLadder, ladderMatrix.Up));
-                                    matrix.Translation = vL + vC;
+                                    // UNDONE DEBUG
+                                    //{
+                                    //    MyTransparentGeometry.AddPointBillboard("Square", Color.Red, charOnLadder, 0.1f, 0, 0, true);
+                                    //    MyTransparentGeometry.AddPointBillboard("Square", Color.Yellow, ld.character.WorldMatrix.Translation, 0.1f, 0, 0, true);
+                                    //    MyTransparentGeometry.AddPointBillboard("Square", Color.Green, matrix.Translation, 0.1f, 0, 0, true);
+                                    //}
                                     
                                     ld.character.SetWorldMatrix(MatrixD.SlerpScale(ld.character.WorldMatrix, matrix, MathHelper.Clamp(ld.progress, 0.0f, 1.0f)));
                                     
@@ -909,7 +913,7 @@ namespace Digi.Ladder
                                 var offset = ladderInternal.BlockDefinition.ModelOffset;
                                 ladderBox.Center = ladderMatrix.Translation + ladderMatrix.Up * 1.125f + ladderMatrix.Forward * (offset.Z + EXTRA_OFFSET_Z);
                                 
-                                ladderBox.HalfExtent.Y = 0.25;
+                                ladderBox.HalfExtent.Y = 0.25 + 0.06; // 6mm offset to avoid some inaccuracies
                                 ladderBox.HalfExtent.Z = 0.5;
                                 
                                 if(l.CubeGrid.GridSizeEnum == MyCubeSize.Large)
@@ -918,6 +922,7 @@ namespace Digi.Ladder
                             else
                             {
                                 ladderBox.HalfExtent = (ladderInternal.BlockDefinition.Size * l.CubeGrid.GridSize) / 2;
+                                ladderBox.HalfExtent.Y += 0.06; // 6mm offset to avoid some inaccuracies
                                 ladderBox.HalfExtent.Z = 0.5;
                                 
                                 var offset = ladderInternal.BlockDefinition.ModelOffset;
@@ -1177,7 +1182,7 @@ namespace Digi.Ladder
                         
                         if(analogInput.Y > 0) // jump
                         {
-                            if(MyHud.CharacterInfo.State == MyHudCharacterStateEnum.Standing)
+                            if(MyHud.CharacterInfo.State == MyHudCharacterStateEnum.Standing) // this is still fine for avoiding jump as the character still is able to jump without needing feet on the ground
                             {
                                 ExitLadder(false); // only release if on the floor as the character will jump regardless
                                 return;
@@ -1244,12 +1249,13 @@ namespace Digi.Ladder
                             var edge = charOnLadder + ((alignVertical > 0 ? ladderMatrix.Up : ladderMatrix.Down) * halfY);
                             
                             // climb over at the end when climbing up
-                            if(move > 0 && Vector3D.DistanceSquared(charPos, edge) <= (0.25 * 0.25))
+                            if(move > 0 && Vector3D.DistanceSquared(charPos, edge) <= 0.0625) // 0.25 squared
                             {
                                 var nextBlockWorldPos = ladderMatrix.Translation + ladderMatrix.Forward * offset.Z + ((alignVertical > 0 ? ladderMatrix.Up : ladderMatrix.Down) * (halfY + 0.1f));
                                 var nextBlockPos = ladder.CubeGrid.WorldToGridInteger(nextBlockWorldPos);
                                 var slim = ladder.CubeGrid.GetCubeBlock(nextBlockPos);
                                 
+                                // if the next block is not a ladder, dismount
                                 if(slim == null || !(slim.FatBlock is IMyTerminalBlock) || !LadderBlock.ladderIds.Contains(slim.FatBlock.BlockDefinition.SubtypeId))
                                 {
                                     dismounting = ALIGN_STEP;
@@ -1261,10 +1267,27 @@ namespace Digi.Ladder
                             // on the floor and moving backwards makes you dismount
                             if(move < 0 && MyHud.CharacterInfo.State == MyHudCharacterStateEnum.Standing)
                             {
-                                ExitLadder(false);
-                                return;
+                                // need to check the block under the ladder if it's anything but a ladder because "standing" stance occurs when character rests on its chest-sphere collision mesh too
+                                var prevBlockWorldPos = ladderMatrix.Translation + ladderMatrix.Forward * offset.Z + (alignVertical > 0 ? ladderMatrix.Down : ladderMatrix.Up) * (halfY + 0.1f);
+                                var prevBlockPos = ladder.CubeGrid.WorldToGridInteger(prevBlockWorldPos);
+                                var slim = ladder.CubeGrid.GetCubeBlock(prevBlockPos);
+                                
+                                // if it's not a ladder, check the distance and confirm your feet are close to its edge
+                                if(slim == null || !(slim.FatBlock is IMyTerminalBlock) || !LadderBlock.ladderIds.Contains(slim.FatBlock.BlockDefinition.SubtypeId))
+                                {
+                                    // get the block's edge and the character feet position only along the ladder's up/down axis
+                                    var blockPosProjectedUp = ladderMatrix.Up * Vector3D.Dot(prevBlockWorldPos, ladderMatrix.Up);
+                                    var charPosProjectedUp = ladderMatrix.Up * Vector3D.Dot(character.WorldMatrix.Translation, ladderMatrix.Up);
+                                    
+                                    if(Vector3D.DistanceSquared(blockPosProjectedUp, charPosProjectedUp) <= 0.04) // 0.2 squared
+                                    {
+                                        ExitLadder(false); // to recap: if you're moving char-relative down and in "standing" stance and the block below is not a ladder and you're closer than 0.1m to its edge, then let go of the ladder.
+                                        return;
+                                    }
+                                }
                             }
                             
+                            // climbing on the ladder
                             if(move != 0)
                             {
                                 if(!learned[1] && sprint)
@@ -1397,16 +1420,28 @@ namespace Digi.Ladder
             lastLadderAnim = anim;
             var skinned = ent as MySkinnedEntity;
             
-            skinned.AddCommand(new MyAnimationCommand()
-                               {
-                                   AnimationSubtypeName = ladderAnimations[(int)anim],
-                                   FrameOption = MyFrameOption.Loop,
-                                   PlaybackCommand = MyPlaybackCommand.Play,
-                                   TimeScale = (anim == LadderAnimation.MOUNTING ? 1.5f : 1f),
-                                   KeepContinuingAnimations = false,
-                                   BlendOption = MyBlendOption.Immediate,
-                                   BlendTime = 0.1f,
-                               }, true);
+            if(skinned.UseNewAnimationSystem)
+            {
+                // TODO how does this even...
+                /*
+                var character = ent as IMyCharacter;
+                character.TriggerCharacterAnimationEvent("SMBody_WalkRun".ToLower(), true);
+                character.TriggerCharacterAnimationEvent("Sprint".ToLower(), true);
+                 */
+            }
+            else
+            {
+                skinned.AddCommand(new MyAnimationCommand()
+                                   {
+                                       AnimationSubtypeName = ladderAnimations[(int)anim],
+                                       FrameOption = MyFrameOption.Loop,
+                                       PlaybackCommand = MyPlaybackCommand.Play,
+                                       TimeScale = (anim == LadderAnimation.MOUNTING ? 1.5f : 1f),
+                                       KeepContinuingAnimations = false,
+                                       BlendOption = MyBlendOption.Immediate,
+                                       BlendTime = 0.1f,
+                                   }, true);
+            }
         }
         
         public void MessageEntered(string msg, ref bool send)
