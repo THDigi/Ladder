@@ -31,6 +31,7 @@ namespace Digi.Ladder
         
         public ControlCombination useLadder1 = ControlCombination.CreateFrom(InputHandler.CONTROL_PREFIX+"use");
         public ControlCombination useLadder2 = ControlCombination.CreateFrom(InputHandler.GAMEPAD_PREFIX+"x");
+        public bool relativeControls = true;
         public bool clientPrediction = true; // TODO temporary?
         
         private static char[] CHARS = new char[] { '=' };
@@ -118,6 +119,12 @@ namespace Digi.Ladder
                             else
                                 Log.Error("Invalid "+args[0]+" value: " + args[1]);
                             continue;
+                        case "relativecontrols":
+                            if(bool.TryParse(args[1], out b))
+                                relativeControls = b;
+                            else
+                                Log.Error("Invalid "+args[0]+" value: " + args[1]);
+                            continue;
                         case "clientprediction":
                             if(bool.TryParse(args[1], out b))
                                 clientPrediction = b;
@@ -161,6 +168,15 @@ namespace Digi.Ladder
                 str.AppendLine("// Lines starting with // are comments. All values are case insensitive unless otherwise specified.");
                 str.AppendLine();
             }
+            
+            if(comments)
+            {
+                str.AppendLine("// Toggles wether ladder control is relative to the camera.");
+                str.AppendLine("// For example: looking down will cause W to climb and looking forward or up will cause W to climb up, similarily with A, D and S.");
+                str.AppendLine("// Setting this to false will cause W/S to always climb up/down and A/D to always move left/right regardless of where you're looking.");
+                str.AppendLine("// Default: true");
+            }
+            str.Append("RelativeControls=").Append(relativeControls ? "true" : "false").AppendLine();
             
             if(comments)
             {
@@ -224,7 +240,7 @@ namespace Digi.Ladder
                 str.AppendLine("// Testing features:");
             }
             
-            str.Append("ClientPrediction=").Append(clientPrediction).AppendLine(comments ? " // toggle client movement prediction, only affects you and only if you're a client in a MP server, default: true" : "");
+            str.Append("ClientPrediction=").Append(clientPrediction ? "true" : "false").AppendLine(comments ? " // toggle client movement prediction, only affects you and only if you're a client in a MP server, default: true" : "");
             
             return str.ToString();
         }

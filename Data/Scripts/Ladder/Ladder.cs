@@ -1100,11 +1100,9 @@ namespace Digi.Ladder
                                 float align = Vector3.Dot(ladderMatrix.Up, character.WorldMatrix.Up);
                                 
                                 var matrix = MatrixD.CreateFromDir(ladderMatrix.Backward, (align > 0 ? ladderMatrix.Up : ladderMatrix.Down));
-                                
-                                var vC = character.WorldMatrix.Translation;
-                                vC = vC - (ladderMatrix.Forward * Vector3D.Dot(vC, ladderMatrix.Forward)) - (ladderMatrix.Left * Vector3D.Dot(vC, ladderMatrix.Left));
-                                var vL = charOnLadder - (ladderMatrix.Up * Vector3D.Dot(charOnLadder, ladderMatrix.Up));
-                                matrix.Translation = vL + vC;
+                                var halfY = ((ladderInternal.BlockDefinition.Size.Y * ladder.CubeGrid.GridSize) / 2);
+                                var diff = Vector3D.Dot(character.WorldMatrix.Translation, ladderMatrix.Up) - Vector3D.Dot(charOnLadder, ladderMatrix.Up);
+                                matrix.Translation = charOnLadder + ladderMatrix.Up * MathHelper.Clamp(diff, -halfY, halfY);
                                 
                                 character.SetWorldMatrix(MatrixD.SlerpScale(character.WorldMatrix, matrix, MathHelper.Clamp(mounting, 0.0f, 1.0f)));
                             }
@@ -1173,12 +1171,16 @@ namespace Digi.Ladder
                         
                         var view = MyAPIGateway.Session.ControlledObject.GetHeadMatrix(false, true);
                         float lookVertical = Vector3.Dot(character.WorldMatrix.Up, view.Forward);
-                        float verticalModifier = MathHelper.Clamp((lookVertical + 0.65f) / 0.5f, -0.5f, 1.0f);
                         
-                        if(verticalModifier < 0)
-                            verticalModifier *= 2;
-                        
-                        move = (float)Math.Round(move * verticalModifier, 1);
+                        if(settings.relativeControls) // climbing relative to camera
+                        {
+                            float verticalModifier = MathHelper.Clamp((lookVertical + 0.65f) / 0.5f, -0.5f, 1.0f);
+                            
+                            if(verticalModifier < 0)
+                                verticalModifier *= 2;
+                            
+                            move = (float)Math.Round(move * verticalModifier, 1);
+                        }
                         
                         if(analogInput.Y > 0) // jump
                         {
@@ -1205,10 +1207,13 @@ namespace Digi.Ladder
                         
                         if(side != 0)
                         {
-                            var alignForward = ladderMatrix.Backward.Dot(character.WorldMatrix.Forward);
-                            
-                            if(alignForward < 0)
-                                side = -side;
+                            if(settings.relativeControls) // side dismounting relative to camera
+                            {
+                                var alignForward = ladderMatrix.Backward.Dot(character.WorldMatrix.Forward);
+                                
+                                if(alignForward < 0)
+                                    side = -side;
+                            }
                             
                             float speed = (characterDefinition == null ? (sprint ? VEL_SIDE : VEL_CLIMB) : CHAR_SPEED_MUL * (sprint ? characterDefinition.MaxSprintSpeed : characterDefinition.MaxRunStrafingSpeed));
 
