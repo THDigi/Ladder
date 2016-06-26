@@ -42,9 +42,7 @@ namespace Digi.Ladder
         {
             // load the settings if they exist
             if(!Load())
-            {
                 firstLoad = true; // config didn't exist, assume it's the first time the mod is loaded
-            }
             
             Save(); // refresh config in case of any missing or extra settings
         }
@@ -83,7 +81,7 @@ namespace Digi.Ladder
                     if(line.Length == 0)
                         continue;
                     
-                    i = line.IndexOf("//");
+                    i = line.IndexOf("//", StringComparison.Ordinal);
                     
                     if(i > -1)
                         line = (i == 0 ? "" : line.Substring(0, i));
@@ -111,7 +109,7 @@ namespace Digi.Ladder
                             var obj = ControlCombination.CreateFrom(args[1]);
                             if(obj != null)
                             {
-                                if(args[0].EndsWith("1"))
+                                if(args[0].EndsWith("1", StringComparison.Ordinal))
                                     useLadder1 = obj;
                                 else
                                     useLadder2 = obj;
@@ -196,7 +194,9 @@ namespace Digi.Ladder
                 str.Append("// Key names: ");
                 foreach(var kv in InputHandler.inputs)
                 {
-                    if(kv.Key.StartsWith(InputHandler.MOUSE_PREFIX) || kv.Key.StartsWith(InputHandler.GAMEPAD_PREFIX) || kv.Key.StartsWith(InputHandler.CONTROL_PREFIX))
+                    if(kv.Key.StartsWith(InputHandler.MOUSE_PREFIX, StringComparison.Ordinal)
+                       || kv.Key.StartsWith(InputHandler.GAMEPAD_PREFIX, StringComparison.Ordinal)
+                       || kv.Key.StartsWith(InputHandler.CONTROL_PREFIX, StringComparison.Ordinal))
                         continue;
                     
                     str.Append(kv.Key).Append(", ");
@@ -206,7 +206,7 @@ namespace Digi.Ladder
                 str.Append("// Mouse button names: ");
                 foreach(var kv in InputHandler.inputs)
                 {
-                    if(kv.Key.StartsWith(InputHandler.MOUSE_PREFIX))
+                    if(kv.Key.StartsWith(InputHandler.MOUSE_PREFIX, StringComparison.Ordinal))
                     {
                         str.Append(kv.Key).Append(", ");
                     }
@@ -216,7 +216,7 @@ namespace Digi.Ladder
                 str.Append("// Gamepad button/axes names: ");
                 foreach(var kv in InputHandler.inputs)
                 {
-                    if(kv.Key.StartsWith(InputHandler.GAMEPAD_PREFIX))
+                    if(kv.Key.StartsWith(InputHandler.GAMEPAD_PREFIX, StringComparison.Ordinal))
                     {
                         str.Append(kv.Key).Append(", ");
                     }
@@ -226,7 +226,7 @@ namespace Digi.Ladder
                 str.Append("// Control names: ");
                 foreach(var kv in InputHandler.inputs)
                 {
-                    if(kv.Key.StartsWith(InputHandler.CONTROL_PREFIX))
+                    if(kv.Key.StartsWith(InputHandler.CONTROL_PREFIX, StringComparison.Ordinal))
                     {
                         str.Append(kv.Key).Append(", ");
                     }
