@@ -1,27 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Text;
-using System.Threading.Tasks;
 using System.IO;
-using Sandbox.Common;
-using Sandbox.Common.ObjectBuilders;
-using Sandbox.Definitions;
-using Sandbox.Engine;
-using Sandbox.Engine.Physics;
-using Sandbox.Engine.Multiplayer;
-using Sandbox.Game;
-using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
-using Sandbox.ModAPI.Interfaces;
-using VRage.Common.Utils;
-using VRage.Input;
-using VRage.Utils;
-using VRageMath;
-using VRage;
 using Digi.Utils;
-using VRageRender;
 
 namespace Digi.Ladder
 {
@@ -42,7 +25,9 @@ namespace Digi.Ladder
         {
             // load the settings if they exist
             if(!Load())
+            {
                 firstLoad = true; // config didn't exist, assume it's the first time the mod is loaded
+            }
             
             Save(); // refresh config in case of any missing or extra settings
         }
@@ -81,7 +66,7 @@ namespace Digi.Ladder
                     if(line.Length == 0)
                         continue;
                     
-                    i = line.IndexOf("//", StringComparison.Ordinal);
+                    i = line.IndexOf("//");
                     
                     if(i > -1)
                         line = (i == 0 ? "" : line.Substring(0, i));
@@ -109,7 +94,7 @@ namespace Digi.Ladder
                             var obj = ControlCombination.CreateFrom(args[1]);
                             if(obj != null)
                             {
-                                if(args[0].EndsWith("1", StringComparison.Ordinal))
+                                if(args[0].EndsWith("1"))
                                     useLadder1 = obj;
                                 else
                                     useLadder2 = obj;
@@ -194,9 +179,7 @@ namespace Digi.Ladder
                 str.Append("// Key names: ");
                 foreach(var kv in InputHandler.inputs)
                 {
-                    if(kv.Key.StartsWith(InputHandler.MOUSE_PREFIX, StringComparison.Ordinal)
-                       || kv.Key.StartsWith(InputHandler.GAMEPAD_PREFIX, StringComparison.Ordinal)
-                       || kv.Key.StartsWith(InputHandler.CONTROL_PREFIX, StringComparison.Ordinal))
+                    if(kv.Key.StartsWith(InputHandler.MOUSE_PREFIX) || kv.Key.StartsWith(InputHandler.GAMEPAD_PREFIX) || kv.Key.StartsWith(InputHandler.CONTROL_PREFIX))
                         continue;
                     
                     str.Append(kv.Key).Append(", ");
@@ -206,7 +189,7 @@ namespace Digi.Ladder
                 str.Append("// Mouse button names: ");
                 foreach(var kv in InputHandler.inputs)
                 {
-                    if(kv.Key.StartsWith(InputHandler.MOUSE_PREFIX, StringComparison.Ordinal))
+                    if(kv.Key.StartsWith(InputHandler.MOUSE_PREFIX))
                     {
                         str.Append(kv.Key).Append(", ");
                     }
@@ -216,7 +199,7 @@ namespace Digi.Ladder
                 str.Append("// Gamepad button/axes names: ");
                 foreach(var kv in InputHandler.inputs)
                 {
-                    if(kv.Key.StartsWith(InputHandler.GAMEPAD_PREFIX, StringComparison.Ordinal))
+                    if(kv.Key.StartsWith(InputHandler.GAMEPAD_PREFIX))
                     {
                         str.Append(kv.Key).Append(", ");
                     }
@@ -226,7 +209,7 @@ namespace Digi.Ladder
                 str.Append("// Control names: ");
                 foreach(var kv in InputHandler.inputs)
                 {
-                    if(kv.Key.StartsWith(InputHandler.CONTROL_PREFIX, StringComparison.Ordinal))
+                    if(kv.Key.StartsWith(InputHandler.CONTROL_PREFIX))
                     {
                         str.Append(kv.Key).Append(", ");
                     }

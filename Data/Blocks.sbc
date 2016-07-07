@@ -45,6 +45,12 @@
       </MountPoints>
       <MirroringZ>Y</MirroringZ>
       <EdgeType>Light</EdgeType>
+      <BlockVariants>
+        <BlockVariant>
+          <TypeId>AdvancedDoor</TypeId>
+          <SubtypeId>LargeShipUsableLadderRetractable</SubtypeId>
+        </BlockVariant>
+      </BlockVariants>
     </Definition>
 
     <Definition>
@@ -90,6 +96,16 @@
       </MountPoints>
       <MirroringZ>Y</MirroringZ>
       <EdgeType>Light</EdgeType>
+      <BlockVariants>
+        <BlockVariant>
+          <TypeId>TerminalBlock</TypeId>
+          <SubtypeId>SmallShipUsableLadderSegment</SubtypeId>
+        </BlockVariant>
+        <BlockVariant>
+          <TypeId>AdvancedDoor</TypeId>
+          <SubtypeId>SmallShipUsableLadderRetractable</SubtypeId>
+        </BlockVariant>
+      </BlockVariants>
     </Definition>
 
 
@@ -101,6 +117,7 @@
       <BlockPairName>UsableLadderSegment</BlockPairName>
       <DisplayName>Ladder Segment</DisplayName>
       <Icon>Textures\Icons\LadderSegment.dds</Icon>
+      <GuiVisible>false</GuiVisible>
       <CubeSize>Small</CubeSize>
       <BlockTopology>TriangleMesh</BlockTopology>
       <Size x="3" y="1" z="1" />
@@ -140,6 +157,7 @@
       <BlockPairName>LadderRetractable</BlockPairName>
       <DisplayName>Ladder Retractable</DisplayName>
       <Icon>Textures\Icons\LadderRetractable.dds</Icon>
+      <GuiVisible>false</GuiVisible>
       <CubeSize>Large</CubeSize>
       <BlockTopology>TriangleMesh</BlockTopology>
       <Size x="1" y="1" z="1" />
@@ -242,6 +260,7 @@
       <BlockPairName>LadderRetractable</BlockPairName>
       <DisplayName>Ladder Retractable</DisplayName>
       <Icon>Textures\Icons\LadderRetractable.dds</Icon>
+      <GuiVisible>false</GuiVisible>
       <CubeSize>Small</CubeSize>
       <BlockTopology>TriangleMesh</BlockTopology>
       <Size x="3" y="5" z="1" />

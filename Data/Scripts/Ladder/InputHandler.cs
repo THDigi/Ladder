@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using Sandbox.Game;
 using Sandbox.Game.Gui;
 using Sandbox.ModAPI;
 using VRage.Input;
 using VRage.Utils;
-using VRageMath;
 using Digi.Utils;
 
 namespace Digi.Utils
@@ -27,7 +25,7 @@ namespace Digi.Utils
         
         public string GetFriendlyString(bool xboxChars = true)
         {
-            var combined = new List<string>();
+            List<string> combined = new List<string>();
             
             foreach(var o in combination)
             {
@@ -106,9 +104,9 @@ namespace Digi.Utils
                     if(!MyAPIGateway.Input.IsJoystickButtonPressed((MyJoystickButtonsEnum)o))
                         return false;
                 }
-                else
+                else if(o is string)
                 {
-                    var text = o as string;
+                    var text = (string)o;
                     
                     switch(text)
                     {
@@ -148,23 +146,38 @@ namespace Digi.Utils
                                 break;
                             }
                         case InputHandler.MOUSE_PREFIX+"x":
-                            if(MyAPIGateway.Input.GetMouseXForGamePlay() == 0)
-                                return false;
-                            break;
+                            {
+                                var x = MyAPIGateway.Input.GetMouseXForGamePlay();
+                                
+                                if(x == 0)
+                                    return false;
+                                
+                                break;
+                            }
                         case InputHandler.MOUSE_PREFIX+"y":
-                            if(MyAPIGateway.Input.GetMouseYForGamePlay() == 0)
-                                return false;
-                            break;
+                            {
+                                var y = MyAPIGateway.Input.GetMouseYForGamePlay();
+                                
+                                if(y == 0)
+                                    return false;
+                                
+                                break;
+                            }
                         case InputHandler.MOUSE_PREFIX+"scroll":
-                            if(MyAPIGateway.Input.DeltaMouseScrollWheelValue() == 0)
-                                return false;
-                            break;
+                            {
+                                var z = MyAPIGateway.Input.DeltaMouseScrollWheelValue();
+                                
+                                if(z == 0)
+                                    return false;
+                                
+                                break;
+                            }
                         case InputHandler.GAMEPAD_PREFIX+"lsanalog":
                             {
                                 var x = -MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Xneg) + MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Xpos);
                                 var y = -MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Yneg) + MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Ypos);
                                 
-                                if(Math.Abs(x) < float.Epsilon && Math.Abs(y) < float.Epsilon)
+                                if(x == 0 && y == 0)
                                     return false;
                                 
                                 break;
@@ -174,19 +187,29 @@ namespace Digi.Utils
                                 var x = -MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.RotationXneg) + MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.RotationXpos);
                                 var y = -MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.RotationYneg) + MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.RotationYpos);
                                 
-                                if(Math.Abs(x) < float.Epsilon && Math.Abs(y) < float.Epsilon)
+                                if(x == 0 && y == 0)
                                     return false;
                                 
                                 break;
                             }
                         case InputHandler.GAMEPAD_PREFIX+"ltanalog":
-                            if(Math.Abs(MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Zpos)) < float.Epsilon)
-                                return false;
-                            break;
+                            {
+                                var z = MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Zpos);
+                                
+                                if(z == 0)
+                                    return false;
+                                
+                                break;
+                            }
                         case InputHandler.GAMEPAD_PREFIX+"rtanalog":
-                            if(Math.Abs(MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Zneg)) < float.Epsilon)
-                                return false;
-                            break;
+                            {
+                                var z = MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Zneg);
+                                
+                                if(z == 0)
+                                    return false;
+                                
+                                break;
+                            }
                     }
                 }
             }
@@ -489,22 +512,10 @@ namespace Digi.Utils
                 {CONTROL_PREFIX+"specdelta", MyControlsSpace.SPECTATOR_DELTA},
                 {CONTROL_PREFIX+"specfree", MyControlsSpace.SPECTATOR_FREE},
                 {CONTROL_PREFIX+"specstatic", MyControlsSpace.SPECTATOR_STATIC},
-                {CONTROL_PREFIX+"stationrotation", MyControlsSpace.STATION_ROTATION},
+                {CONTROL_PREFIX+"stationrotation", MyControlsSpace.FREE_ROTATION},
+                {CONTROL_PREFIX+"cubesizemode", MyControlsSpace.CUBE_BUILDER_CUBESIZE_MODE},
                 {CONTROL_PREFIX+"switchleft", MyControlsSpace.SWITCH_LEFT}, // previous color or cam
                 {CONTROL_PREFIX+"switchright", MyControlsSpace.SWITCH_RIGHT}, // next color or cam
-                {CONTROL_PREFIX+"voicechat", MyControlsSpace.VOICE_CHAT},
-                {CONTROL_PREFIX+"voxelpaint", MyControlsSpace.VOXEL_PAINT},
-                {CONTROL_PREFIX+"compoundmode", MyControlsSpace.SWITCH_COMPOUND},
-                {CONTROL_PREFIX+"voxelhandsettings", MyControlsSpace.VOXEL_HAND_SETTINGS},
-                {CONTROL_PREFIX+"buildmode", MyControlsSpace.BUILD_MODE},
-                {CONTROL_PREFIX+"buildingmode", MyControlsSpace.SWITCH_BUILDING_MODE},
-                {CONTROL_PREFIX+"nextblockstage", MyControlsSpace.NEXT_BLOCK_STAGE},
-                {CONTROL_PREFIX+"prevblockstage", MyControlsSpace.PREV_BLOCK_STAGE},
-                {CONTROL_PREFIX+"movecloser", MyControlsSpace.MOVE_CLOSER},
-                {CONTROL_PREFIX+"movefurther", MyControlsSpace.MOVE_FURTHER},
-                {CONTROL_PREFIX+"primarybuildaction", MyControlsSpace.PRIMARY_BUILD_ACTION},
-                {CONTROL_PREFIX+"secondarybuildaction", MyControlsSpace.SECONDARY_BUILD_ACTION},
-                {CONTROL_PREFIX+"copypaste", MyControlsSpace.COPY_PASTE_ACTION},
             };
             
             inputNames = new Dictionary<object, string>();
@@ -592,9 +603,9 @@ namespace Digi.Utils
                     if(MyAPIGateway.Input.IsJoystickButtonPressed((MyJoystickButtonsEnum)o))
                         return true;
                 }
-                else
+                else if(o is string)
                 {
-                    var text = o as string;
+                    var text = (string)o;
                     
                     switch(text)
                     {
@@ -634,23 +645,38 @@ namespace Digi.Utils
                                 break;
                             }
                         case InputHandler.MOUSE_PREFIX+"x":
-                            if(MyAPIGateway.Input.GetMouseXForGamePlay() != 0)
-                                return true;
-                            break;
+                            {
+                                var x = MyAPIGateway.Input.GetMouseXForGamePlay();
+                                
+                                if(x != 0)
+                                    return true;
+                                
+                                break;
+                            }
                         case InputHandler.MOUSE_PREFIX+"y":
-                            if(MyAPIGateway.Input.GetMouseYForGamePlay() != 0)
-                                return true;
-                            break;
+                            {
+                                var y = MyAPIGateway.Input.GetMouseYForGamePlay();
+                                
+                                if(y != 0)
+                                    return true;
+                                
+                                break;
+                            }
                         case InputHandler.MOUSE_PREFIX+"scroll":
-                            if(MyAPIGateway.Input.DeltaMouseScrollWheelValue() != 0)
-                                return true;
-                            break;
+                            {
+                                var z = MyAPIGateway.Input.DeltaMouseScrollWheelValue();
+                                
+                                if(z != 0)
+                                    return true;
+                                
+                                break;
+                            }
                         case InputHandler.GAMEPAD_PREFIX+"lsanalog":
                             {
                                 var x = -MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Xneg) + MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Xpos);
                                 var y = -MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Yneg) + MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Ypos);
                                 
-                                if(Math.Abs(x) > float.Epsilon || Math.Abs(y) > float.Epsilon)
+                                if(x != 0 || y != 0)
                                     return true;
                                 
                                 break;
@@ -660,19 +686,29 @@ namespace Digi.Utils
                                 var x = -MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.RotationXneg) + MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.RotationXpos);
                                 var y = -MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.RotationYneg) + MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.RotationYpos);
                                 
-                                if(Math.Abs(x) > float.Epsilon || Math.Abs(y) > float.Epsilon)
+                                if(x != 0 || y != 0)
                                     return true;
                                 
                                 break;
                             }
                         case InputHandler.GAMEPAD_PREFIX+"ltanalog":
-                            if(Math.Abs(MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Zpos)) > float.Epsilon)
-                                return true;
-                            break;
+                            {
+                                var z = MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Zpos);
+                                
+                                if(z != 0)
+                                    return true;
+                                
+                                break;
+                            }
                         case InputHandler.GAMEPAD_PREFIX+"rtanalog":
-                            if(Math.Abs(MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Zneg)) > float.Epsilon)
-                                return true;
-                            break;
+                            {
+                                var z = MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Zneg);
+                                
+                                if(z != 0)
+                                    return true;
+                                
+                                break;
+                            }
                     }
                 }
             }
