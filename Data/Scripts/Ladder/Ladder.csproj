@@ -91,6 +91,7 @@
     <Compile Include="InputHandler.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="Ladder.cs" />
+    <Compile Include="PacketHandler.cs" />
     <Compile Include="Settings.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -7,7 +7,6 @@ using Sandbox.Common.ObjectBuilders;
 using Sandbox.Definitions;
 using Sandbox.Game;
 using Sandbox.Game.Entities;
-using Sandbox.Game.Gui;
 using Sandbox.ModAPI;
 using Sandbox.ModAPI.Interfaces;
 using SpaceEngineers.Game.ModAPI;
@@ -53,12 +52,13 @@ namespace Digi.Ladder
                 {
                     travel = 0;
                     var position = character.WorldMatrix.Translation;
-                    var bytes = encode.GetBytes(character.EntityId.ToString());
+                    var bytes = BitConverter.GetBytes(character.EntityId);
+                    
                     MyAPIGateway.Players.GetPlayers(LadderMod.players, delegate(IMyPlayer p)
                                                     {
                                                         if(Vector3D.DistanceSquared(p.GetPosition(), position) <= STEP_RANGE_SQ)
                                                         {
-                                                            MyAPIGateway.Multiplayer.SendMessageTo(PACKET_STEP, bytes, p.SteamUserId, false);
+                                                            MyAPIGateway.Multiplayer.SendMessageTo(PACKET_STEP, bytes, p.SteamUserId, false); // TODO mix this packet into the other packet
                                                         }
                                                         
                                                         return false;
@@ -95,6 +95,7 @@ namespace Digi.Ladder
         
         private IMyEntity character = null;
         private MyCharacterDefinition characterDefinition = null;
+        private MyCharacterMovementEnum characterMovementState = MyCharacterMovementEnum.Died;
         private IMyTerminalBlock usingLadder = null;
         private float mounting = 2f;
         private float dismounting = 2;
@@ -114,9 +115,9 @@ namespace Digi.Ladder
         
         private const string LEARNFILE = "learned";
         private bool loadedAllLearned = false;
-        private bool[] learned = new bool[5];
-        private IMyHudNotification[] learnNotify = new MyHudNotification[5];
-        private string[] learnText = new string[]
+        private readonly bool[] learned = new bool[5];
+        private readonly IMyHudNotification[] learnNotify = new IMyHudNotification[5];
+        private readonly string[] learnText =
         {
             "Move forward/backward to climb",
             "Sprint to climb/descend faster",
@@ -137,9 +138,10 @@ namespace Digi.Ladder
         private Dictionary<ulong, PlayerOnLadder> playersOnLadder = null;
         private List<ulong> removePlayersOnLadder = new List<ulong>();
         
-        private StringBuilder packetData = new StringBuilder();
         private HashSet<IMyEntity> ents = new HashSet<IMyEntity>();
         public static List<IMyPlayer> players = new List<IMyPlayer>();
+        
+        private static readonly StringBuilder tmp = new StringBuilder();
         
         public const float ALIGN_STEP = 0.01f;
         public const float ALIGN_MUL = 1.2f;
@@ -171,6 +173,8 @@ namespace Digi.Ladder
         
         public const float ALIGN_ACCURACY = 0.005f;
         
+        private const int COLLISSIONLAYER_NOCHARACTER = 30;
+        
         public static string[] ladderAnimations = new string[]
         {
             null,
@@ -201,6 +205,8 @@ namespace Digi.Ladder
             {
                 settings = new Settings();
                 
+                InputHandler.Init();
+                
                 string worldVariables;
                 
                 if(MyAPIGateway.Utilities.GetVariable("LadderMod", out worldVariables))
@@ -226,7 +232,7 @@ namespace Digi.Ladder
                         {
                             line = line.Trim();
                             
-                            if(line.StartsWith("//"))
+                            if(line.StartsWith("//", StringComparison.Ordinal))
                                 continue;
                             
                             switch(line)
@@ -268,30 +274,32 @@ namespace Digi.Ladder
             
             try
             {
-                StringBuilder text = new StringBuilder();
+                tmp.Clear();
                 
                 if(learned[0])
-                    text.AppendLine("move_climb");
+                    tmp.AppendLine("move_climb");
                 
                 if(learned[1])
-                    text.AppendLine("move_sprint");
+                    tmp.AppendLine("move_sprint");
                 
                 if(learned[2])
-                    text.AppendLine("side_dismount");
+                    tmp.AppendLine("side_dismount");
                 
                 if(learned[3])
-                    text.AppendLine("jump_dismount");
+                    tmp.AppendLine("jump_dismount");
                 
                 if(learned[4])
-                    text.AppendLine("crouch_dismount");
+                    tmp.AppendLine("crouch_dismount");
                 
-                if(text.Length > 0)
+                if(tmp.Length > 0)
                 {
                     var file = MyAPIGateway.Utilities.WriteFileInLocalStorage(LEARNFILE, typeof(LadderMod));
-                    file.Write(text.ToString());
+                    file.Write(tmp.ToString());
                     file.Flush();
                     file.Close();
                 }
+                
+                tmp.Clear();
             }
             catch(Exception e)
             {
@@ -345,6 +353,8 @@ namespace Digi.Ladder
                     
                     if(!isDedicated)
                     {
+                        InputHandler.Close();
+                        
                         MyAPIGateway.Utilities.MessageEntered -= MessageEntered;
                         MyAPIGateway.Multiplayer.UnregisterMessageHandler(PACKET_STEP, ReceivedStepPacket);
                         
@@ -372,10 +382,9 @@ namespace Digi.Ladder
         {
             try
             {
-                string data = encode.GetString(bytes);
-                long entId;
+                long entId = BitConverter.ToInt64(bytes, 0);
                 
-                if(long.TryParse(data, out entId) && MyAPIGateway.Entities.EntityExists(entId))
+                if(MyAPIGateway.Entities.EntityExists(entId))
                 {
                     var ent = MyAPIGateway.Entities.GetEntityById(entId);
                     var emitter = new MyEntity3DSoundEmitter(ent as MyEntity);
@@ -392,10 +401,13 @@ namespace Digi.Ladder
         {
             try
             {
-                string[] data = encode.GetString(bytes).Split(SEPARATOR);
-                int i = 0;
-                LadderAction action = (LadderAction)int.Parse(data[i++]);
-                long charId = long.Parse(data[i++]);
+                int index = 0;
+                
+                var action = (LadderAction)bytes[index];
+                index += sizeof(byte);
+                
+                long charId = BitConverter.ToInt64(bytes, index);
+                index += sizeof(long);
                 
                 if(!MyAPIGateway.Entities.EntityExists(charId))
                 {
@@ -403,8 +415,10 @@ namespace Digi.Ladder
                     return;
                 }
                 
-                ulong steamId = ulong.Parse(data[i++]);
                 var charEnt = MyAPIGateway.Entities.GetEntityById(charId);
+                
+                ulong steamId = BitConverter.ToUInt64(bytes, index);
+                index += sizeof(ulong);
                 
                 PlayerOnLadder ld = null;
                 playersOnLadder.TryGetValue(steamId, out ld);
@@ -442,7 +456,9 @@ namespace Digi.Ladder
                             
                             if(action == LadderAction.MOUNT)
                             {
-                                long ladderId = long.Parse(data[i++]);
+                                long ladderId = BitConverter.ToInt64(bytes, index);
+                                index += sizeof(long);
+                                
                                 ld.ladder = (MyAPIGateway.Entities.EntityExists(ladderId) ? MyAPIGateway.Entities.GetEntityById(ladderId) as IMyCubeBlock : null);
                                 
                                 if(ld.ladder == null)
@@ -460,7 +476,10 @@ namespace Digi.Ladder
                         }
                     case LadderAction.JUMP_OFF:
                         {
-                            var jumpDir = new Vector3D(double.Parse(data[i++]), double.Parse(data[i++]), double.Parse(data[i++]));
+                            var jumpDir = new Vector3D(BitConverter.ToDouble(bytes, index),
+                                                       BitConverter.ToDouble(bytes, index + sizeof(double)),
+                                                       BitConverter.ToDouble(bytes, index + sizeof(double) * 2));
+                            index += sizeof(double) * 3;
                             
                             ld.character.Physics.LinearVelocity += jumpDir * (ld.characterDefinition == null ? VEL_JUMP : ld.characterDefinition.Mass * ld.characterDefinition.JumpForce) * TICKRATE;
                             ld.StepSound(0);
@@ -471,14 +490,23 @@ namespace Digi.Ladder
                     case LadderAction.CLIMB:
                         {
                             // don't set the action, it'll run in ON_LADDER
-                            ld.climb = float.Parse(data[i++]);
-                            ld.side = float.Parse(data[i++]);
-                            ld.sprint = int.Parse(data[i++]) == 1;
+                            
+                            ld.climb = BitConverter.ToSingle(bytes, index);
+                            index += sizeof(float);
+                            
+                            ld.side = BitConverter.ToSingle(bytes, index);
+                            index += sizeof(float);
+                            
+                            ld.sprint = BitConverter.ToBoolean(bytes, index);
+                            index += sizeof(bool);
+                            
                             return;
                         }
                     case LadderAction.CHANGE_LADDER:
                         {
-                            long ladderId = long.Parse(data[i++]);
+                            long ladderId = BitConverter.ToInt64(bytes, index);
+                            index += sizeof(long);
+                            
                             ld.ladder = (MyAPIGateway.Entities.EntityExists(ladderId) ? MyAPIGateway.Entities.GetEntityById(ladderId) as IMyCubeBlock : null);
                             
                             if(ld.ladder == null)
@@ -598,8 +626,20 @@ namespace Digi.Ladder
             if(character == ent)
                 return;
             
+            if(character != null)
+            {
+                (character as IMyCharacter).OnMovementStateChanged -= CharacterMovementStateChanged;
+            }
+            
             character = ent;
             characterDefinition = GetCharacterDefinitionFrom(ent);
+            
+            (character as IMyCharacter).OnMovementStateChanged += CharacterMovementStateChanged;
+        }
+        
+        public void CharacterMovementStateChanged(MyCharacterMovementEnum oldState, MyCharacterMovementEnum newState)
+        {
+            characterMovementState = newState;
         }
         
         private MyCharacterDefinition GetCharacterDefinitionFrom(IMyEntity ent)
@@ -652,7 +692,7 @@ namespace Digi.Ladder
                                 {
                                     var ladderMatrix = ld.ladder.WorldMatrix;
                                     
-                                    if(ld.climb != 0) // climbing up/down
+                                    if(Math.Abs(ld.climb) > 0.0001f) // climbing up/down
                                     {
                                         float speed = (ld.characterDefinition == null ? (ld.sprint ? VEL_SPRINT : VEL_CLIMB) : CHAR_SPEED_MUL * (ld.sprint ? ld.characterDefinition.MaxSprintSpeed : ld.characterDefinition.MaxRunSpeed));
                                         
@@ -662,7 +702,7 @@ namespace Digi.Ladder
                                     
                                     float speedSide = (ld.characterDefinition == null ? (ld.sprint ? VEL_SIDE : VEL_CLIMB) : CHAR_SPEED_MUL * (ld.sprint ? ld.characterDefinition.MaxSprintSpeed : ld.characterDefinition.MaxRunStrafingSpeed));
                                     
-                                    if(ld.side != 0) // moving sideways
+                                    if(Math.Abs(ld.side) > 0.0001f) // moving sideways
                                     {
                                         ld.character.Physics.LinearVelocity += ladderMatrix.Left * ld.side * speedSide * TICKRATE;
                                         ld.travel += Math.Abs(ld.side) * speedSide * TICKRATE;
@@ -814,6 +854,7 @@ namespace Digi.Ladder
                     // Dynamically enable/disable UseModelIntersection on ladder blocks that you hold to have the useful effect
                     // of being able the block when another entity is blocking the grid space but not the blocks's physical shape.
                     // This will still have the side effect issue if you aim at a ladder block with the same ladder block.
+                    /* TODO > whitelist
                     if(cb.IsActivated && cb.CubeBuilderState != null && cb.CubeBuilderState.CurrentBlockDefinition != null && LadderLogic.ladderIds.Contains(cb.CubeBuilderState.CurrentBlockDefinition.Id.SubtypeName))
                     {
                         if(prevCubeBuilderDefinition == null || prevCubeBuilderDefinition.Id != cb.CubeBuilderState.CurrentBlockDefinition.Id)
@@ -830,6 +871,7 @@ namespace Digi.Ladder
                         prevCubeBuilderDefinition.UseModelIntersection = false;
                         prevCubeBuilderDefinition = null;
                     }
+                     */
                     
                     var charCtrl = character as IMyControllableEntity;
                     bool controllingCharacter = (playerControlled != null && playerControlled.Entity is IMyCharacter);
@@ -1026,30 +1068,11 @@ namespace Digi.Ladder
                                 }
                                 else
                                 {
-                                    bool use1 = (readInput && settings.useLadder1 != null && settings.useLadder1.AllPressed());
-                                    bool use2 = (readInput && settings.useLadder2 != null && settings.useLadder2.AllPressed());
+                                    bool pressed = readInput && InputHandler.GetPressedOr(settings.useLadder1, settings.useLadder2, false, false); // needs to support hold-press, so don't set JustPressed to true!
                                     
-                                    if(!use1 && !use2)
+                                    if(!pressed)
                                     {
-                                        StringBuilder assigned = new StringBuilder();
-                                        
-                                        if(settings.useLadder1 != null)
-                                            assigned.Append(settings.useLadder1.GetFriendlyString().ToUpper());
-                                        
-                                        if(settings.useLadder2 != null)
-                                        {
-                                            string secondary = settings.useLadder2.GetFriendlyString();
-                                            
-                                            if(secondary.Length > 0)
-                                            {
-                                                if(assigned.Length > 0)
-                                                    assigned.Append(" or ");
-                                                
-                                                assigned.Append(secondary.ToUpper());
-                                            }
-                                        }
-                                        
-                                        SetLadderStatus("Press "+assigned+" to use the ladder.", MyFontEnum.White);
+                                        SetLadderStatus("Press "+InputHandler.GetFriendlyStringOr(settings.useLadder1, settings.useLadder2)+" to use the ladder.", MyFontEnum.White);
                                         return;
                                     }
                                 }
@@ -1147,7 +1170,7 @@ namespace Digi.Ladder
                             for(int i = 0; i < learned.Length; i++)
                             {
                                 if(learnNotify[i] == null)
-                                    learnNotify[i] = new MyHudNotification(CUSTOMTEXT, 100, MyFontEnum.White, MyGuiDrawAlignEnum.HORISONTAL_LEFT_AND_VERTICAL_TOP, 5, MyNotificationLevel.Important);
+                                    learnNotify[i] = MyAPIGateway.Utilities.CreateNotification("");
                                 
                                 learnNotify[i].Text = (learned[i] ? LEARN_CHECK : LEARN_UNCHECK) + learnText[i];
                                 learnNotify[i].Font = (learned[i] ? MyFontEnum.White : MyFontEnum.DarkBlue);
@@ -1177,7 +1200,7 @@ namespace Digi.Ladder
                         
                         if(analogInput.Y > 0) // jump
                         {
-                            if(MyHud.CharacterInfo.State == MyHudCharacterStateEnum.Standing) // this is still fine for avoiding jump as the character still is able to jump without needing feet on the ground
+                            if(characterMovementState == MyCharacterMovementEnum.Jump) // this is still fine for avoiding jump as the character still is able to jump without needing feet on the ground
                             {
                                 ExitLadder(false); // only release if on the floor as the character will jump regardless
                                 return;
@@ -1198,7 +1221,7 @@ namespace Digi.Ladder
                         
                         bool sprint = (characterDefinition != null && characterDefinition.Jetpack != null && MyAPIGateway.Input.IsGameControlPressed(MyControlsSpace.SPRINT));
                         
-                        if(side != 0)
+                        if(Math.Abs(side) > 0.0001f)
                         {
                             if(settings.relativeControls) // side dismounting relative to camera
                             {
@@ -1238,7 +1261,7 @@ namespace Digi.Ladder
                             }
                         }
                         
-                        if(move != 0)
+                        if(Math.Abs(move) > 0.0001f)
                         {
                             if(!learned[0])
                                 learned[0] = true;
@@ -1254,7 +1277,7 @@ namespace Digi.Ladder
                                 var slim = ladder.CubeGrid.GetCubeBlock(nextBlockPos);
                                 
                                 // if the next block is not a ladder, dismount
-                                if(slim == null || !(slim.FatBlock is IMyTerminalBlock) || !LadderBlock.ladderIds.Contains(slim.FatBlock.BlockDefinition.SubtypeId))
+                                if(slim == null || !(slim.FatBlock is IMyTerminalBlock) || !LadderLogic.ladderIds.Contains(slim.FatBlock.BlockDefinition.SubtypeId))
                                 {
                                     dismounting = ALIGN_STEP;
                                     SendLadderData(LadderAction.DISMOUNT);
@@ -1263,42 +1286,47 @@ namespace Digi.Ladder
                             }
                             
                             // on the floor and moving backwards makes you dismount
-                            if(move < 0 && MyHud.CharacterInfo.State == MyHudCharacterStateEnum.Standing)
+                            if(move < 0)
                             {
-                                // need to check the block under the ladder if it's anything but a ladder because "standing" stance occurs when character rests on its chest-sphere collision mesh too
-                                var prevBlockWorldPos = ladderMatrix.Translation + ladderMatrix.Forward * offset.Z + (alignVertical > 0 ? ladderMatrix.Down : ladderMatrix.Up) * (halfY + 0.1f);
-                                var prevBlockPos = ladder.CubeGrid.WorldToGridInteger(prevBlockWorldPos);
-                                var slim = ladder.CubeGrid.GetCubeBlock(prevBlockPos);
+                                var feetStart = character.WorldMatrix.Translation + character.WorldMatrix.Up * 0.2; // a bit higher because the floor might clip through the character
+                                var feetTarget = feetStart + character.WorldMatrix.Down * 0.3;
+                                IHitInfo hit;
                                 
-                                // if it's not a ladder, check the distance and confirm your feet are close to its edge
-                                if(slim == null || !(slim.FatBlock is IMyTerminalBlock) || !LadderBlock.ladderIds.Contains(slim.FatBlock.BlockDefinition.SubtypeId))
+                                if(MyAPIGateway.Physics.CastRay(feetStart, feetTarget, out hit, COLLISSIONLAYER_NOCHARACTER))
                                 {
-                                    // get the block's edge and the character feet position only along the ladder's up/down axis
-                                    var blockPosProjectedUp = ladderMatrix.Up * Vector3D.Dot(prevBlockWorldPos, ladderMatrix.Up);
-                                    var charPosProjectedUp = ladderMatrix.Up * Vector3D.Dot(character.WorldMatrix.Translation, ladderMatrix.Up);
+                                    // need to check the block under the ladder if it's anything but a ladder because "standing" stance occurs when character rests on its chest-sphere collision mesh too
+                                    var prevBlockWorldPos = ladderMatrix.Translation + ladderMatrix.Forward * offset.Z + (alignVertical > 0 ? ladderMatrix.Down : ladderMatrix.Up) * (halfY + 0.1f);
+                                    var prevBlockPos = ladder.CubeGrid.WorldToGridInteger(prevBlockWorldPos);
+                                    var slim = ladder.CubeGrid.GetCubeBlock(prevBlockPos);
                                     
-                                    if(Vector3D.DistanceSquared(blockPosProjectedUp, charPosProjectedUp) <= 0.04) // 0.2 squared
+                                    // if it's not a ladder, check the distance and confirm your feet are close to its edge
+                                    if(slim == null || !(slim.FatBlock is IMyTerminalBlock) || !LadderLogic.ladderIds.Contains(slim.FatBlock.BlockDefinition.SubtypeId))
                                     {
-                                        ExitLadder(false); // to recap: if you're moving char-relative down and in "standing" stance and the block below is not a ladder and you're closer than 0.1m to its edge, then let go of the ladder.
-                                        return;
+                                        // get the block's edge and the character feet position only along the ladder's up/down axis
+                                        var blockPosProjectedUp = ladderMatrix.Up * Vector3D.Dot(prevBlockWorldPos, ladderMatrix.Up);
+                                        var charPosProjectedUp = ladderMatrix.Up * Vector3D.Dot(character.WorldMatrix.Translation, ladderMatrix.Up);
+                                        
+                                        if(Vector3D.DistanceSquared(blockPosProjectedUp, charPosProjectedUp) <= 0.04) // 0.2 squared
+                                        {
+                                            ExitLadder(false); // to recap: if you're moving char-relative down and in "standing" stance and the block below is not a ladder and you're closer than 0.1m to its edge, then let go of the ladder.
+                                            return;
+                                        }
                                     }
                                 }
                             }
                             
                             // climbing on the ladder
-                            if(move != 0)
-                            {
-                                if(!learned[1] && sprint)
-                                    learned[1] = true;
-                                
-                                float speed = (characterDefinition == null ? (sprint ? VEL_SPRINT : VEL_CLIMB) : CHAR_SPEED_MUL * (sprint ? characterDefinition.MaxSprintSpeed : characterDefinition.MaxRunSpeed));
-                                
-                                if(settings.clientPrediction)
-                                    character.Physics.LinearVelocity += (alignVertical > 0 ? ladderMatrix.Up : ladderMatrix.Down) * move * speed * TICKRATE;
-                                
-                                if(!movingSideways)
-                                    LadderAnim(character, (move > 0 ? LadderAnimation.UP : LadderAnimation.DOWN));
-                            }
+                            
+                            if(!learned[1] && sprint)
+                                learned[1] = true;
+                            
+                            float speed = (characterDefinition == null ? (sprint ? VEL_SPRINT : VEL_CLIMB) : CHAR_SPEED_MUL * (sprint ? characterDefinition.MaxSprintSpeed : characterDefinition.MaxRunSpeed));
+                            
+                            if(settings.clientPrediction)
+                                character.Physics.LinearVelocity += (alignVertical > 0 ? ladderMatrix.Up : ladderMatrix.Down) * move * speed * TICKRATE;
+                            
+                            if(!movingSideways)
+                                LadderAnim(character, (move > 0 ? LadderAnimation.UP : LadderAnimation.DOWN));
                         }
                         else if(!movingSideways)
                         {
@@ -1331,7 +1359,7 @@ namespace Digi.Ladder
             {
                 case LadderAction.CLIMB:
                     {
-                        if(climb.Value == myLadderStatus.climb && side.Value == myLadderStatus.side && sprint.Value == myLadderStatus.sprint)
+                        if(Math.Abs(climb.Value - myLadderStatus.climb) < 0.0001f && Math.Abs(side.Value - myLadderStatus.side) < 0.0001f && sprint.Value == myLadderStatus.sprint)
                             return;
                         
                         myLadderStatus.climb = climb.Value;
@@ -1350,40 +1378,40 @@ namespace Digi.Ladder
                     }
             }
             
-            packetData.Clear();
-            packetData.Append((int)action);
-            packetData.Append(SEPARATOR);
-            packetData.Append(character.EntityId);
-            packetData.Append(SEPARATOR);
-            packetData.Append(MyAPIGateway.Multiplayer.MyId);
+            int len = sizeof(byte) + sizeof(long) + sizeof(ulong);
+            
+            if(entId.HasValue)
+                len += sizeof(long);
+            
+            if(vec.HasValue)
+                len += sizeof(double) * 3;
+            
+            if(climb.HasValue && side.HasValue && sprint.HasValue)
+                len += sizeof(float) * 2 + sizeof(bool);
+            
+            var bytes = new byte[len];
+            len = 0;
+            
+            PacketHandler.AddToArray((byte)action, ref len, ref bytes);
+            PacketHandler.AddToArray(character.EntityId, ref len, ref bytes);
+            PacketHandler.AddToArray(MyAPIGateway.Multiplayer.MyId, ref len, ref bytes);
+            
+            if(entId.HasValue)
+            {
+                PacketHandler.AddToArray(entId.Value, ref len, ref bytes);
+            }
             
             if(vec.HasValue)
             {
-                packetData.Append(SEPARATOR);
-                packetData.Append(vec.Value.X);
-                packetData.Append(SEPARATOR);
-                packetData.Append(vec.Value.Y);
-                packetData.Append(SEPARATOR);
-                packetData.Append(vec.Value.Z);
+                PacketHandler.AddToArray(vec.Value, ref len, ref bytes);
             }
             
             if(climb.HasValue && side.HasValue && sprint.HasValue)
             {
-                packetData.Append(SEPARATOR);
-                packetData.Append(climb.Value);
-                packetData.Append(SEPARATOR);
-                packetData.Append(side.Value);
-                packetData.Append(SEPARATOR);
-                packetData.Append(sprint.Value ? 1 : 0);
+                PacketHandler.AddToArray(climb.Value, ref len, ref bytes);
+                PacketHandler.AddToArray(side.Value, ref len, ref bytes);
+                PacketHandler.AddToArray(sprint.Value, ref len, ref bytes);
             }
-            
-            if(entId.HasValue)
-            {
-                packetData.Append(SEPARATOR);
-                packetData.Append(entId.Value);
-            }
-            
-            var bytes = encode.GetBytes(packetData.ToString());
             
             MyAPIGateway.Multiplayer.SendMessageToServer(PACKET_LADDERDATA, bytes, true);
         }
