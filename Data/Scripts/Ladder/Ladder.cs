@@ -93,7 +93,7 @@ namespace Digi.Ladder
         private bool init = false;
         private bool isDedicated = false;
         
-        private IMyEntity character = null;
+        private IMyCharacter character = null;
         private MyCharacterDefinition characterDefinition = null;
         private MyCharacterMovementEnum characterMovementState = MyCharacterMovementEnum.Died;
         private IMyTerminalBlock usingLadder = null;
@@ -623,18 +623,19 @@ namespace Digi.Ladder
         
         private void SetCharacterReference(IMyEntity ent)
         {
-            if(character == ent)
+            if(character == ent || !(ent is IMyCharacter))
                 return;
             
             if(character != null)
-            {
-                (character as IMyCharacter).OnMovementStateChanged -= CharacterMovementStateChanged;
-            }
+                character.OnMovementStateChanged -= CharacterMovementStateChanged;
             
-            character = ent;
+            character = ent as IMyCharacter;
+            
+            if(character == null)
+                return;
+            
             characterDefinition = GetCharacterDefinitionFrom(ent);
-            
-            (character as IMyCharacter).OnMovementStateChanged += CharacterMovementStateChanged;
+            character.OnMovementStateChanged += CharacterMovementStateChanged;
         }
         
         public void CharacterMovementStateChanged(MyCharacterMovementEnum oldState, MyCharacterMovementEnum newState)
@@ -670,6 +671,8 @@ namespace Digi.Ladder
                     
                     Init();
                 }
+                
+                InputHandler.Update();
                 
                 if(MyAPIGateway.Multiplayer.IsServer && playersOnLadder != null && playersOnLadder.Count > 0)
                 {
