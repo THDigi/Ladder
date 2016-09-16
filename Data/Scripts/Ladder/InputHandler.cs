@@ -8,6 +8,7 @@ using VRage.Input;
 using VRage.Utils;
 using VRageMath;
 using Digi.Utils;
+using VRage.Game.ModAPI;
 
 namespace Digi.Utils
 {
@@ -583,26 +584,23 @@ namespace Digi.Utils
             };
         }
         
-        public static void Init()
+        public static void Init() // NOTE: this must be called in the session component.
         {
+#if STABLE // TODO STABLE CONDITION
             MyAPIGateway.GuiControlCreated += GUICreated;
+#endif
         }
-        
-        public static void Close()
+
+        public static void Close() // NOTE: this must be called in the session component.
         {
+#if STABLE // TODO STABLE CONDITION
             MyAPIGateway.GuiControlCreated -= GUICreated;
+#endif
         }
-        
-        public static void GUICreated(object obj)
+
+        public static void Update() // NOTE: this must be called in the session component.
         {
-            var ui = obj.ToString();
-            
-            if(ui == "Sandbox.Game.Gui.MyGuiScreenChat")
-                menuInChat = 2; // need to skip one tick because enter is still being registered as new-pressed this tick
-        }
-        
-        public static void Update()
-        {
+#if STABLE // TODO STABLE CONDITION
             if(menuInChat > 0)
             {
                 if(menuInChat > 1)
@@ -610,17 +608,33 @@ namespace Digi.Utils
                 else if(MyAPIGateway.Input.IsNewGameControlPressed(MyControlsSpace.CHAT_SCREEN) || MyAPIGateway.Input.IsNewKeyPressed(MyKeys.Escape))
                     menuInChat = 0;
             }
+#endif
         }
-        
+
+#if STABLE // TODO STABLE CONDITION
+        public static void GUICreated(object obj)
+        {
+            var ui = obj.ToString();
+            
+            if(ui == "Sandbox.Game.Gui.MyGuiScreenChat")
+                menuInChat = 2; // need to skip one tick because enter is still being registered as new-pressed this tick
+        }
+#endif
+
         public static bool IsInputReadable()
         {
             // TODO detect properly: escape menu, F10 and F11 menus, mission screens, yes/no notifications.
-            // I can detect all of the above with the GUICreated event except for the F11 menu, but I can't reliably know when they're closed, so not going to use them.
-            
-            // HACK > whitelist stuff, not allowed anymore
-            return menuInChat == 0; // && MyGuiScreenGamePlay.ActiveGameplayScreen == null && MyGuiScreenTerminal.GetCurrentScreen() == MyTerminalPageEnum.None;
+
+#if STABLE // TODO STABLE CONDITION
+            return menuInChat == 0;
+#else
+            var GUI = MyAPIGateway.Gui;
+
+            // TODO once NullRef is fixed, add: && GUI.ActiveGamePlayScreen == null
+            return !GUI.ChatEntryVisible && GUI.GetCurrentScreen == MyTerminalPageEnum.None;
+#endif
         }
-        
+
         public static void AppendNiceNamePrefix(string key, object obj, StringBuilder str)
         {
             if(obj is MyKeys)
@@ -774,7 +788,7 @@ namespace Digi.Utils
             return !any;
         }
         
-        public static bool GetPressedOr(ControlCombination input1, ControlCombination input2, bool anyPressed = false, bool justPressed = true)
+        public static bool GetPressedOr(ControlCombination input1, ControlCombination input2, bool anyPressed = false, bool justPressed = false)
         {
             if(input1 != null && GetPressed(input1.combination, anyPressed, justPressed))
                 return true;
