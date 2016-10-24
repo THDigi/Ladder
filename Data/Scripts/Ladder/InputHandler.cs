@@ -17,24 +17,24 @@ namespace Digi.Utils
         public List<object> combination = new List<object>();
         public List<string> raw = new List<string>();
         public string combinationString = "";
-        
+
         public ControlCombination() { }
-        
+
         public string GetStringCombination()
         {
             return combinationString;
         }
-        
+
         public string GetFriendlyString(bool xboxChars = true)
         {
             var combined = new List<string>();
-            
+
             foreach(var o in combination)
             {
                 if(o is MyStringId)
                 {
                     var control = MyAPIGateway.Input.GetGameControl((MyStringId)o);
-                    
+
                     if(control.GetMouseControl() != MyMouseButtonsEnum.None)
                     {
                         combined.Add(InputHandler.inputNames[control.GetMouseControl()]);
@@ -62,31 +62,31 @@ namespace Digi.Utils
                     combined.Add(InputHandler.inputNames[o]);
                 }
             }
-            
+
             return String.Join(" ", combined);
         }
-        
+
         public static ControlCombination CreateFrom(string combinationString, bool logErrors = false)
         {
             if(combinationString == null)
                 return null;
-            
+
             string[] data = combinationString.ToLower().Split(' ');
-            
+
             if(data.Length == 0)
                 return null;
-            
+
             var obj = new ControlCombination();
-            
+
             for(int d = 0; d < data.Length; d++)
             {
                 var s = data[d].Trim();
-                
+
                 if(s.Length == 0 || obj.raw.Contains(s))
                     continue;
-                
+
                 object o;
-                
+
                 if(InputHandler.inputs.TryGetValue(s, out o))
                 {
                     obj.raw.Add(s);
@@ -95,17 +95,17 @@ namespace Digi.Utils
                 else
                 {
                     if(logErrors)
-                        Log.Info("WARNING: Input not found: "+s);
-                    
+                        Log.Info("WARNING: Input not found: " + s);
+
                     return null;
                 }
             }
-            
+
             obj.combinationString = String.Join(" ", obj.raw);
             return obj;
         }
     }
-    
+
     public static class InputHandler
     {
         public static Dictionary<string, object> inputs = null;
@@ -118,12 +118,10 @@ namespace Digi.Utils
         public const string GAMEPAD_PREFIX = "g.";
         public const string CONTROL_PREFIX = "c.";
         
-        private static byte menuInChat = 0;
-        
         private static readonly StringBuilder tmp = new StringBuilder();
-        
+
         private const float EPSILON = 0.000001f;
-        
+
         static InputHandler()
         {
             inputs = new Dictionary<string, object>()
@@ -385,23 +383,23 @@ namespace Digi.Utils
                 //{CONTROL_PREFIX+"primarybuildaction", MyControlsSpace.PRIMARY_BUILD_ACTION}, // doesn't seem to be usable
                 //{CONTROL_PREFIX+"secondarybuildaction", MyControlsSpace.SECONDARY_BUILD_ACTION},
             };
-            
+
             inputAnalogList = new List<string>()
             {
                 {MOUSE_PREFIX+"analog"},
                 {MOUSE_PREFIX+"x"},
                 {MOUSE_PREFIX+"y"},
                 {MOUSE_PREFIX+"scroll"},
-                
+
                 {GAMEPAD_PREFIX+"lsanalog"},
                 {GAMEPAD_PREFIX+"rsanalog"},
                 {GAMEPAD_PREFIX+"ltanalog"},
                 {GAMEPAD_PREFIX+"rtanalog"},
             };
-            
+
             inputNames = new Dictionary<object, string>();
             inputValuesList = new List<object>();
-            
+
             foreach(var kv in inputs)
             {
                 if(!inputNames.ContainsKey(kv.Value))
@@ -410,14 +408,14 @@ namespace Digi.Utils
                     inputValuesList.Add(kv.Value);
                 }
             }
-            
+
             inputNiceNames = new Dictionary<string, string>();
-            
+
             foreach(var kv in inputs)
             {
                 inputNiceNames.Add(kv.Key, (kv.Value is MyKeys ? char.ToUpper(kv.Key[0]) + kv.Key.Substring(1) : char.ToUpper(kv.Key[2]) + kv.Key.Substring(3)));
             }
-            
+
             inputNiceNames["leftctrl"] = "Left Ctrl";
             inputNiceNames["leftshift"] = "Left Shift";
             inputNiceNames["leftalt"] = "Left Alt";
@@ -455,103 +453,103 @@ namespace Digi.Utils
             inputNiceNames["pagedown"] = "Page Down";
             inputNiceNames["capslock"] = "Caps Lock";
             inputNiceNames["scrollock"] = "Scroll Lock";
-            
-            inputNiceNames[MOUSE_PREFIX+"left"] = "Left Click";
-            inputNiceNames[MOUSE_PREFIX+"right"] = "Right Click";
-            inputNiceNames[MOUSE_PREFIX+"middle"] = "Middle Click";
-            inputNiceNames[MOUSE_PREFIX+"button4"] = "Button 4";
-            inputNiceNames[MOUSE_PREFIX+"button5"] = "Button 5";
-            inputNiceNames[MOUSE_PREFIX+"analog"] = "X,Y,Scroll (analog)";
-            inputNiceNames[MOUSE_PREFIX+"x"] = "X axis (analog)";
-            inputNiceNames[MOUSE_PREFIX+"y"] = "Y axis (analog)";
-            inputNiceNames[MOUSE_PREFIX+"scroll"] = "Scroll (analog)";
-            inputNiceNames[MOUSE_PREFIX+"scrollup"] = "Scroll Up";
-            inputNiceNames[MOUSE_PREFIX+"scrolldown"] = "Scroll Down";
-            inputNiceNames[MOUSE_PREFIX+"x+"] = "X+ axis";
-            inputNiceNames[MOUSE_PREFIX+"x-"] = "X- axis";
-            inputNiceNames[MOUSE_PREFIX+"y+"] = "Y+ axis";
-            inputNiceNames[MOUSE_PREFIX+"y-"] = "Y- axis";
-            
-            inputNiceNames[GAMEPAD_PREFIX+"lb"] = "Left Bumper";
-            inputNiceNames[GAMEPAD_PREFIX+"rb"] = "Right Bumper";
-            inputNiceNames[GAMEPAD_PREFIX+"lt"] = "Left Trigger";
-            inputNiceNames[GAMEPAD_PREFIX+"rt"] = "Right Trigger";
-            inputNiceNames[GAMEPAD_PREFIX+"ltanalog"] = "Left Trigger (analog)";
-            inputNiceNames[GAMEPAD_PREFIX+"rtanalog"] = "Right Trigger (analog)";
-            inputNiceNames[GAMEPAD_PREFIX+"ls"] = "Left Stick";
-            inputNiceNames[GAMEPAD_PREFIX+"rs"] = "Right Stick";
-            inputNiceNames[GAMEPAD_PREFIX+"lsanalog"] = "Left Stick (analog)";
-            inputNiceNames[GAMEPAD_PREFIX+"rsanalog"] = "Right Stick (analog)";
-            inputNiceNames[GAMEPAD_PREFIX+"dpadup"] = "D-pad Up";
-            inputNiceNames[GAMEPAD_PREFIX+"dpaddown"] = "D-pad Down";
-            inputNiceNames[GAMEPAD_PREFIX+"dpadleft"] = "D-pad Left";
-            inputNiceNames[GAMEPAD_PREFIX+"dpadright"] = "D-pad Right";
-            inputNiceNames[GAMEPAD_PREFIX+"lsup"] = "Left Stick Up";
-            inputNiceNames[GAMEPAD_PREFIX+"lsdown"] = "Left Stick Down";
-            inputNiceNames[GAMEPAD_PREFIX+"lsleft"] = "Left Stick Left";
-            inputNiceNames[GAMEPAD_PREFIX+"lsright"] = "Left Stick Right";
-            inputNiceNames[GAMEPAD_PREFIX+"rsup"] = "Right Stick Up";
-            inputNiceNames[GAMEPAD_PREFIX+"rsdown"] = "Right Stick Down";
-            inputNiceNames[GAMEPAD_PREFIX+"rsleft"] = "Right Stick Left";
-            inputNiceNames[GAMEPAD_PREFIX+"rsright"] = "Right Stick Right";
-            
-            inputNiceNames[CONTROL_PREFIX+"view"] = "View (analog)";
-            inputNiceNames[CONTROL_PREFIX+"strafeleft"] = "Strafe Left";
-            inputNiceNames[CONTROL_PREFIX+"straferight"] = "Strafe Right";
-            inputNiceNames[CONTROL_PREFIX+"jump"] = "Up/Jump";
-            inputNiceNames[CONTROL_PREFIX+"crouch"] = "Down/Crouch";
-            inputNiceNames[CONTROL_PREFIX+"rollleft"] = "Roll Left";
-            inputNiceNames[CONTROL_PREFIX+"rollright"] = "Roll Right";
-            inputNiceNames[CONTROL_PREFIX+"use"] = "Use/Interact";
-            inputNiceNames[CONTROL_PREFIX+"primaryaction"] = "Use Tool/Fire weapon";
-            inputNiceNames[CONTROL_PREFIX+"secondaryaction"] = "Secondary Mode";
-            inputNiceNames[CONTROL_PREFIX+"lookleft"] = "Rotate Left";
-            inputNiceNames[CONTROL_PREFIX+"lookright"] = "Rotate Right";
-            inputNiceNames[CONTROL_PREFIX+"lookup"] = "Rotate Up";
-            inputNiceNames[CONTROL_PREFIX+"lookdown"] = "Rotate Down";
-            inputNiceNames[CONTROL_PREFIX+"controlmenu"] = "Control Menu";
-            inputNiceNames[CONTROL_PREFIX+"lookaround"] = "Look Around";
-            inputNiceNames[CONTROL_PREFIX+"stationrotation"] = "Station Rotation";
-            inputNiceNames[CONTROL_PREFIX+"buildmenu"] = "Build Menu";
-            inputNiceNames[CONTROL_PREFIX+"cuberotatey+"] = "Cube Rotate Y+";
-            inputNiceNames[CONTROL_PREFIX+"cuberotatey-"] = "Cube Rotate Y-";
-            inputNiceNames[CONTROL_PREFIX+"cuberotatex+"] = "Cube Rotate X+";
-            inputNiceNames[CONTROL_PREFIX+"cuberotatex-"] = "Cube Rotate X-";
-            inputNiceNames[CONTROL_PREFIX+"cuberotatez+"] = "Cube Rotate Z+";
-            inputNiceNames[CONTROL_PREFIX+"cuberotatez-"] = "Cube Rotate Z-";
-            inputNiceNames[CONTROL_PREFIX+"missionsettings"] = "Scenario Settings";
-            inputNiceNames[CONTROL_PREFIX+"cockpitbuild"] = "Cockpit Build";
-            inputNiceNames[CONTROL_PREFIX+"nexttoolbar"] = "Next Toolbar";
-            inputNiceNames[CONTROL_PREFIX+"prevtoolbar"] = "Previous Toolbar";
-            inputNiceNames[CONTROL_PREFIX+"nextitem"] = "Next Toolbar Item";
-            inputNiceNames[CONTROL_PREFIX+"previtem"] = "Prev Toolbar Item";
-            inputNiceNames[CONTROL_PREFIX+"switchleft"] = "Next Camera/Color";
-            inputNiceNames[CONTROL_PREFIX+"switchright"] = "Prev Camera/Color";
-            inputNiceNames[CONTROL_PREFIX+"damping"] = "Dampeners";
-            inputNiceNames[CONTROL_PREFIX+"thrusts"] = "Jetpack";
-            inputNiceNames[CONTROL_PREFIX+"light"] = "Toggle Lights";
-            inputNiceNames[CONTROL_PREFIX+"togglehud"] = "Toggle HUD";
-            inputNiceNames[CONTROL_PREFIX+"togglesignals"] = "Toggle Signals";
-            inputNiceNames[CONTROL_PREFIX+"cameramode"] = "Camera Mode";
-            inputNiceNames[CONTROL_PREFIX+"paint"] = "Paint/Weapon Mode";
-            inputNiceNames[CONTROL_PREFIX+"slot0"] = "Slot 0/Unequip";
-            inputNiceNames[CONTROL_PREFIX+"slot1"] = "Slot 1";
-            inputNiceNames[CONTROL_PREFIX+"slot2"] = "Slot 2";
-            inputNiceNames[CONTROL_PREFIX+"slot3"] = "Slot 3";
-            inputNiceNames[CONTROL_PREFIX+"slot4"] = "Slot 4";
-            inputNiceNames[CONTROL_PREFIX+"slot5"] = "Slot 5";
-            inputNiceNames[CONTROL_PREFIX+"slot6"] = "Slot 6";
-            inputNiceNames[CONTROL_PREFIX+"slot7"] = "Slot 7";
-            inputNiceNames[CONTROL_PREFIX+"slot8"] = "Slot 8";
-            inputNiceNames[CONTROL_PREFIX+"slot9"] = "Slot 9";
-            inputNiceNames[CONTROL_PREFIX+"cyclesymmetry"] = "Cycle Symmetry";
-            inputNiceNames[CONTROL_PREFIX+"landinggear"] = "Landing Gear/Color Menu";
-            inputNiceNames[CONTROL_PREFIX+"reactors"] = "Toggle ship power";
-            inputNiceNames[CONTROL_PREFIX+"specnone"] = "Spectator Off";
-            inputNiceNames[CONTROL_PREFIX+"specdelta"] = "Delta Spectator";
-            inputNiceNames[CONTROL_PREFIX+"specfree"] = "Free Spectator";
-            inputNiceNames[CONTROL_PREFIX+"specstatic"] = "Static Spectator";
-            
+
+            inputNiceNames[MOUSE_PREFIX + "left"] = "Left Click";
+            inputNiceNames[MOUSE_PREFIX + "right"] = "Right Click";
+            inputNiceNames[MOUSE_PREFIX + "middle"] = "Middle Click";
+            inputNiceNames[MOUSE_PREFIX + "button4"] = "Button 4";
+            inputNiceNames[MOUSE_PREFIX + "button5"] = "Button 5";
+            inputNiceNames[MOUSE_PREFIX + "analog"] = "X,Y,Scroll (analog)";
+            inputNiceNames[MOUSE_PREFIX + "x"] = "X axis (analog)";
+            inputNiceNames[MOUSE_PREFIX + "y"] = "Y axis (analog)";
+            inputNiceNames[MOUSE_PREFIX + "scroll"] = "Scroll (analog)";
+            inputNiceNames[MOUSE_PREFIX + "scrollup"] = "Scroll Up";
+            inputNiceNames[MOUSE_PREFIX + "scrolldown"] = "Scroll Down";
+            inputNiceNames[MOUSE_PREFIX + "x+"] = "X+ axis";
+            inputNiceNames[MOUSE_PREFIX + "x-"] = "X- axis";
+            inputNiceNames[MOUSE_PREFIX + "y+"] = "Y+ axis";
+            inputNiceNames[MOUSE_PREFIX + "y-"] = "Y- axis";
+
+            inputNiceNames[GAMEPAD_PREFIX + "lb"] = "Left Bumper";
+            inputNiceNames[GAMEPAD_PREFIX + "rb"] = "Right Bumper";
+            inputNiceNames[GAMEPAD_PREFIX + "lt"] = "Left Trigger";
+            inputNiceNames[GAMEPAD_PREFIX + "rt"] = "Right Trigger";
+            inputNiceNames[GAMEPAD_PREFIX + "ltanalog"] = "Left Trigger (analog)";
+            inputNiceNames[GAMEPAD_PREFIX + "rtanalog"] = "Right Trigger (analog)";
+            inputNiceNames[GAMEPAD_PREFIX + "ls"] = "Left Stick";
+            inputNiceNames[GAMEPAD_PREFIX + "rs"] = "Right Stick";
+            inputNiceNames[GAMEPAD_PREFIX + "lsanalog"] = "Left Stick (analog)";
+            inputNiceNames[GAMEPAD_PREFIX + "rsanalog"] = "Right Stick (analog)";
+            inputNiceNames[GAMEPAD_PREFIX + "dpadup"] = "D-pad Up";
+            inputNiceNames[GAMEPAD_PREFIX + "dpaddown"] = "D-pad Down";
+            inputNiceNames[GAMEPAD_PREFIX + "dpadleft"] = "D-pad Left";
+            inputNiceNames[GAMEPAD_PREFIX + "dpadright"] = "D-pad Right";
+            inputNiceNames[GAMEPAD_PREFIX + "lsup"] = "Left Stick Up";
+            inputNiceNames[GAMEPAD_PREFIX + "lsdown"] = "Left Stick Down";
+            inputNiceNames[GAMEPAD_PREFIX + "lsleft"] = "Left Stick Left";
+            inputNiceNames[GAMEPAD_PREFIX + "lsright"] = "Left Stick Right";
+            inputNiceNames[GAMEPAD_PREFIX + "rsup"] = "Right Stick Up";
+            inputNiceNames[GAMEPAD_PREFIX + "rsdown"] = "Right Stick Down";
+            inputNiceNames[GAMEPAD_PREFIX + "rsleft"] = "Right Stick Left";
+            inputNiceNames[GAMEPAD_PREFIX + "rsright"] = "Right Stick Right";
+
+            inputNiceNames[CONTROL_PREFIX + "view"] = "View (analog)";
+            inputNiceNames[CONTROL_PREFIX + "strafeleft"] = "Strafe Left";
+            inputNiceNames[CONTROL_PREFIX + "straferight"] = "Strafe Right";
+            inputNiceNames[CONTROL_PREFIX + "jump"] = "Up/Jump";
+            inputNiceNames[CONTROL_PREFIX + "crouch"] = "Down/Crouch";
+            inputNiceNames[CONTROL_PREFIX + "rollleft"] = "Roll Left";
+            inputNiceNames[CONTROL_PREFIX + "rollright"] = "Roll Right";
+            inputNiceNames[CONTROL_PREFIX + "use"] = "Use/Interact";
+            inputNiceNames[CONTROL_PREFIX + "primaryaction"] = "Use Tool/Fire weapon";
+            inputNiceNames[CONTROL_PREFIX + "secondaryaction"] = "Secondary Mode";
+            inputNiceNames[CONTROL_PREFIX + "lookleft"] = "Rotate Left";
+            inputNiceNames[CONTROL_PREFIX + "lookright"] = "Rotate Right";
+            inputNiceNames[CONTROL_PREFIX + "lookup"] = "Rotate Up";
+            inputNiceNames[CONTROL_PREFIX + "lookdown"] = "Rotate Down";
+            inputNiceNames[CONTROL_PREFIX + "controlmenu"] = "Control Menu";
+            inputNiceNames[CONTROL_PREFIX + "lookaround"] = "Look Around";
+            inputNiceNames[CONTROL_PREFIX + "stationrotation"] = "Station Rotation";
+            inputNiceNames[CONTROL_PREFIX + "buildmenu"] = "Build Menu";
+            inputNiceNames[CONTROL_PREFIX + "cuberotatey+"] = "Cube Rotate Y+";
+            inputNiceNames[CONTROL_PREFIX + "cuberotatey-"] = "Cube Rotate Y-";
+            inputNiceNames[CONTROL_PREFIX + "cuberotatex+"] = "Cube Rotate X+";
+            inputNiceNames[CONTROL_PREFIX + "cuberotatex-"] = "Cube Rotate X-";
+            inputNiceNames[CONTROL_PREFIX + "cuberotatez+"] = "Cube Rotate Z+";
+            inputNiceNames[CONTROL_PREFIX + "cuberotatez-"] = "Cube Rotate Z-";
+            inputNiceNames[CONTROL_PREFIX + "missionsettings"] = "Scenario Settings";
+            inputNiceNames[CONTROL_PREFIX + "cockpitbuild"] = "Cockpit Build";
+            inputNiceNames[CONTROL_PREFIX + "nexttoolbar"] = "Next Toolbar";
+            inputNiceNames[CONTROL_PREFIX + "prevtoolbar"] = "Previous Toolbar";
+            inputNiceNames[CONTROL_PREFIX + "nextitem"] = "Next Toolbar Item";
+            inputNiceNames[CONTROL_PREFIX + "previtem"] = "Prev Toolbar Item";
+            inputNiceNames[CONTROL_PREFIX + "switchleft"] = "Next Camera/Color";
+            inputNiceNames[CONTROL_PREFIX + "switchright"] = "Prev Camera/Color";
+            inputNiceNames[CONTROL_PREFIX + "damping"] = "Dampeners";
+            inputNiceNames[CONTROL_PREFIX + "thrusts"] = "Jetpack";
+            inputNiceNames[CONTROL_PREFIX + "light"] = "Toggle Lights";
+            inputNiceNames[CONTROL_PREFIX + "togglehud"] = "Toggle HUD";
+            inputNiceNames[CONTROL_PREFIX + "togglesignals"] = "Toggle Signals";
+            inputNiceNames[CONTROL_PREFIX + "cameramode"] = "Camera Mode";
+            inputNiceNames[CONTROL_PREFIX + "paint"] = "Paint/Weapon Mode";
+            inputNiceNames[CONTROL_PREFIX + "slot0"] = "Slot 0/Unequip";
+            inputNiceNames[CONTROL_PREFIX + "slot1"] = "Slot 1";
+            inputNiceNames[CONTROL_PREFIX + "slot2"] = "Slot 2";
+            inputNiceNames[CONTROL_PREFIX + "slot3"] = "Slot 3";
+            inputNiceNames[CONTROL_PREFIX + "slot4"] = "Slot 4";
+            inputNiceNames[CONTROL_PREFIX + "slot5"] = "Slot 5";
+            inputNiceNames[CONTROL_PREFIX + "slot6"] = "Slot 6";
+            inputNiceNames[CONTROL_PREFIX + "slot7"] = "Slot 7";
+            inputNiceNames[CONTROL_PREFIX + "slot8"] = "Slot 8";
+            inputNiceNames[CONTROL_PREFIX + "slot9"] = "Slot 9";
+            inputNiceNames[CONTROL_PREFIX + "cyclesymmetry"] = "Cycle Symmetry";
+            inputNiceNames[CONTROL_PREFIX + "landinggear"] = "Landing Gear/Color Menu";
+            inputNiceNames[CONTROL_PREFIX + "reactors"] = "Toggle ship power";
+            inputNiceNames[CONTROL_PREFIX + "specnone"] = "Spectator Off";
+            inputNiceNames[CONTROL_PREFIX + "specdelta"] = "Delta Spectator";
+            inputNiceNames[CONTROL_PREFIX + "specfree"] = "Free Spectator";
+            inputNiceNames[CONTROL_PREFIX + "specstatic"] = "Static Spectator";
+
             xboxCodes = new Dictionary<object, char>
             {
                 // buttons
@@ -583,56 +581,24 @@ namespace Digi.Utils
                 { MyJoystickAxesEnum.Zpos, '\xe008' },
             };
         }
-        
-        public static void Init() // NOTE: this must be called in the session component.
-        {
-#if STABLE // TODO STABLE CONDITION
-            MyAPIGateway.GuiControlCreated += GUICreated;
-#endif
-        }
-
-        public static void Close() // NOTE: this must be called in the session component.
-        {
-#if STABLE // TODO STABLE CONDITION
-            MyAPIGateway.GuiControlCreated -= GUICreated;
-#endif
-        }
-
-        public static void Update() // NOTE: this must be called in the session component.
-        {
-#if STABLE // TODO STABLE CONDITION
-            if(menuInChat > 0)
-            {
-                if(menuInChat > 1)
-                    menuInChat--;
-                else if(MyAPIGateway.Input.IsNewGameControlPressed(MyControlsSpace.CHAT_SCREEN) || MyAPIGateway.Input.IsNewKeyPressed(MyKeys.Escape))
-                    menuInChat = 0;
-            }
-#endif
-        }
-
-#if STABLE // TODO STABLE CONDITION
-        public static void GUICreated(object obj)
-        {
-            var ui = obj.ToString();
-            
-            if(ui == "Sandbox.Game.Gui.MyGuiScreenChat")
-                menuInChat = 2; // need to skip one tick because enter is still being registered as new-pressed this tick
-        }
-#endif
 
         public static bool IsInputReadable()
         {
             // TODO detect properly: escape menu, F10 and F11 menus, mission screens, yes/no notifications.
 
-#if STABLE // TODO STABLE CONDITION
-            return menuInChat == 0;
-#else
             var GUI = MyAPIGateway.Gui;
 
-            // TODO once NullRef is fixed, add: && GUI.ActiveGamePlayScreen == null
-            return !GUI.ChatEntryVisible && GUI.GetCurrentScreen == MyTerminalPageEnum.None;
-#endif
+            if(GUI.ChatEntryVisible || GUI.GetCurrentScreen != MyTerminalPageEnum.None)
+                return false;
+
+            try // HACK ActiveGamePlayScreen throws NRE when called while not in a menu
+            {
+                return GUI.ActiveGamePlayScreen == null;
+            }
+            catch(Exception)
+            {
+                return true;
+            }
         }
 
         public static void AppendNiceNamePrefix(string key, object obj, StringBuilder str)
@@ -645,24 +611,24 @@ namespace Digi.Utils
             {
                 switch(key[0])
                 {
-                        case 'm': str.Append("Mouse: "); break;
-                        case 'g': str.Append("Gamepad: "); break;
-                        case 'c': str.Append("Control: "); break;
+                    case 'm': str.Append("Mouse: "); break;
+                    case 'g': str.Append("Gamepad: "); break;
+                    case 'c': str.Append("Control: "); break;
                 }
             }
         }
-        
-        public static bool GetPressed(List<object> objects, bool any = true, bool justPressed = false,  bool ignoreGameControls = false)
+
+        public static bool GetPressed(List<object> objects, bool any = true, bool justPressed = false, bool ignoreGameControls = false)
         {
             if(objects.Count == 0)
                 return false;
-            
+
             foreach(var o in objects)
             {
                 if(o is MyKeys)
                 {
                     bool pressed = (justPressed ? MyAPIGateway.Input.IsNewKeyPressed((MyKeys)o) : MyAPIGateway.Input.IsKeyPress((MyKeys)o));
-                    
+
                     if(any == pressed)
                         return any;
                 }
@@ -670,160 +636,160 @@ namespace Digi.Utils
                 {
                     if(ignoreGameControls)
                         continue;
-                    
+
                     bool pressed = false; // HACK workaround for any == pressed not working here for some reason
-                    
+
                     if(justPressed ? MyAPIGateway.Input.IsNewGameControlPressed((MyStringId)o) : MyAPIGateway.Input.IsGameControlPressed((MyStringId)o))
                         pressed = true;
-                    
+
                     if(any == pressed)
                         return any;
                 }
                 else if(o is MyMouseButtonsEnum)
                 {
                     bool pressed = false; // HACK workaround for any == pressed not working here for some reason
-                    
+
                     if(justPressed ? MyAPIGateway.Input.IsNewMousePressed((MyMouseButtonsEnum)o) : MyAPIGateway.Input.IsMousePressed((MyMouseButtonsEnum)o))
                         pressed = true;
-                    
+
                     if(any == pressed)
                         return any;
                 }
                 else if(o is MyJoystickAxesEnum)
                 {
                     bool pressed = (justPressed ? MyAPIGateway.Input.IsJoystickAxisNewPressed((MyJoystickAxesEnum)o) : MyAPIGateway.Input.IsJoystickAxisPressed((MyJoystickAxesEnum)o));
-                    
+
                     if(any == pressed)
                         return any;
                 }
                 else if(o is MyJoystickButtonsEnum)
                 {
                     bool pressed = (justPressed ? MyAPIGateway.Input.IsJoystickButtonNewPressed((MyJoystickButtonsEnum)o) : MyAPIGateway.Input.IsJoystickButtonPressed((MyJoystickButtonsEnum)o));
-                    
+
                     if(any == pressed)
                         return any;
                 }
                 else
                 {
                     var text = o as string;
-                    
+
                     switch(text) // no need to check justPressed from here
                     {
-                        case InputHandler.CONTROL_PREFIX+"view":
+                        case InputHandler.CONTROL_PREFIX + "view":
                             if(any == GetFullRotation().LengthSquared() > 0)
                                 return any;
                             break;
-                        case InputHandler.MOUSE_PREFIX+"analog":
+                        case InputHandler.MOUSE_PREFIX + "analog":
                             if(any == (MyAPIGateway.Input.GetMouseXForGamePlay() != 0 || MyAPIGateway.Input.GetMouseYForGamePlay() != 0 || MyAPIGateway.Input.DeltaMouseScrollWheelValue() != 0))
                                 return any;
                             break;
-                        case InputHandler.MOUSE_PREFIX+"x":
+                        case InputHandler.MOUSE_PREFIX + "x":
                             if(any == (MyAPIGateway.Input.GetMouseXForGamePlay() != 0))
                                 return any;
                             break;
-                        case InputHandler.MOUSE_PREFIX+"y":
+                        case InputHandler.MOUSE_PREFIX + "y":
                             if(any == (MyAPIGateway.Input.GetMouseYForGamePlay() != 0))
                                 return any;
                             break;
-                        case InputHandler.MOUSE_PREFIX+"scroll":
+                        case InputHandler.MOUSE_PREFIX + "scroll":
                             if(any == (MyAPIGateway.Input.DeltaMouseScrollWheelValue() != 0))
                                 return any;
                             break;
-                        case InputHandler.GAMEPAD_PREFIX+"lsanalog":
+                        case InputHandler.GAMEPAD_PREFIX + "lsanalog":
                             {
                                 var x = -MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Xneg) + MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Xpos);
                                 var y = -MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Yneg) + MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Ypos);
-                                
+
                                 if(any == (Math.Abs(x) > EPSILON || Math.Abs(y) > EPSILON))
                                     return any;
-                                
+
                                 break;
                             }
-                        case InputHandler.GAMEPAD_PREFIX+"rsanalog":
+                        case InputHandler.GAMEPAD_PREFIX + "rsanalog":
                             {
                                 var x = -MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.RotationXneg) + MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.RotationXpos);
                                 var y = -MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.RotationYneg) + MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.RotationYpos);
-                                
+
                                 if(any == (Math.Abs(x) > EPSILON || Math.Abs(y) > EPSILON))
                                     return any;
-                                
+
                                 break;
                             }
-                        case InputHandler.GAMEPAD_PREFIX+"ltanalog":
+                        case InputHandler.GAMEPAD_PREFIX + "ltanalog":
                             if(any == (Math.Abs(MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Zpos)) > EPSILON))
                                 return any;
                             break;
-                        case InputHandler.GAMEPAD_PREFIX+"rtanalog":
+                        case InputHandler.GAMEPAD_PREFIX + "rtanalog":
                             if(any == (Math.Abs(MyAPIGateway.Input.GetJoystickAxisStateForGameplay(MyJoystickAxesEnum.Zneg)) > EPSILON))
                                 return any;
                             break;
-                        case InputHandler.MOUSE_PREFIX+"scrollup":
+                        case InputHandler.MOUSE_PREFIX + "scrollup":
                             if(any == MyAPIGateway.Input.DeltaMouseScrollWheelValue() > 0)
                                 return any;
                             break;
-                        case InputHandler.MOUSE_PREFIX+"scrolldown":
+                        case InputHandler.MOUSE_PREFIX + "scrolldown":
                             if(any == MyAPIGateway.Input.DeltaMouseScrollWheelValue() < 0)
                                 return any;
                             break;
-                        case InputHandler.MOUSE_PREFIX+"x+":
+                        case InputHandler.MOUSE_PREFIX + "x+":
                             if(any == MyAPIGateway.Input.GetMouseXForGamePlay() > 0)
                                 return any;
                             break;
-                        case InputHandler.MOUSE_PREFIX+"x-":
+                        case InputHandler.MOUSE_PREFIX + "x-":
                             if(any == MyAPIGateway.Input.GetMouseXForGamePlay() < 0)
                                 return any;
                             break;
-                        case InputHandler.MOUSE_PREFIX+"y+":
+                        case InputHandler.MOUSE_PREFIX + "y+":
                             if(any == MyAPIGateway.Input.GetMouseYForGamePlay() > 0)
                                 return any;
                             break;
-                        case InputHandler.MOUSE_PREFIX+"y-":
+                        case InputHandler.MOUSE_PREFIX + "y-":
                             if(any == MyAPIGateway.Input.GetMouseYForGamePlay() < 0)
                                 return any;
                             break;
                     }
                 }
             }
-            
+
             return !any;
         }
-        
+
         public static bool GetPressedOr(ControlCombination input1, ControlCombination input2, bool anyPressed = false, bool justPressed = false)
         {
             if(input1 != null && GetPressed(input1.combination, anyPressed, justPressed))
                 return true;
-            
+
             if(input2 != null && GetPressed(input2.combination, anyPressed, justPressed))
                 return true;
-            
+
             return false;
         }
-        
+
         public static string GetFriendlyStringOr(ControlCombination input1, ControlCombination input2)
         {
             tmp.Clear();
-            
+
             if(input1 != null)
                 tmp.Append(input1.GetFriendlyString().ToUpper());
-            
+
             if(input2 != null)
             {
                 string secondary = input2.GetFriendlyString();
-                
+
                 if(secondary.Length > 0)
                 {
                     if(tmp.Length > 0)
                         tmp.Append(" or ");
-                    
+
                     tmp.Append(secondary.ToUpper());
                 }
             }
-            
+
             var val = tmp.ToString();
             tmp.Clear();
             return val;
         }
-        
+
         public static Vector3 GetFullRotation()
         {
             var rot = MyAPIGateway.Input.GetRotation();
