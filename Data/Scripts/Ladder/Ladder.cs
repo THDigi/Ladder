@@ -522,7 +522,11 @@ namespace Digi.Ladder
             }
         }
 
+#if STABLE // HACK >>> STABLE condition
         public static void SetLadderStatus(string text, MyFontEnum font, int aliveTime = 100)
+#else
+        public static void SetLadderStatus(string text, string font, int aliveTime = 100)
+#endif
         {
             if(status == null)
             {
