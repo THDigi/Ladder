@@ -1,26 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.IO;
 using Sandbox.Common.ObjectBuilders;
 using Sandbox.Definitions;
 using Sandbox.Game;
 using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
 using Sandbox.ModAPI.Interfaces;
-using SpaceEngineers.Game.ModAPI;
 using VRage.Game;
+using VRage.Game.Components;
+using VRage.Game.Entity;
 using VRage.Game.ModAPI;
 using VRage.Input;
-using VRage.ObjectBuilders;
-using VRage.Game.Entity;
-using VRage.Game.Components;
 using VRage.ModAPI;
+using VRage.ObjectBuilders;
 using VRage.Utils;
 using VRageMath;
-
-using Digi.Utils;
 
 using IMyControllableEntity = Sandbox.Game.Entities.IMyControllableEntity;
 
@@ -59,7 +54,7 @@ namespace Digi.Ladder
                     var position = character.WorldMatrix.Translation;
                     var bytes = BitConverter.GetBytes(character.EntityId);
 
-                    MyAPIGateway.Players.GetPlayers(LadderMod.players, delegate (IMyPlayer p)
+                    MyAPIGateway.Players.GetPlayers(LadderMod.instance.players, delegate (IMyPlayer p)
                                                     {
                                                         if(Vector3D.DistanceSquared(p.GetPosition(), position) <= STEP_RANGE_SQ)
                                                         {
@@ -95,8 +90,12 @@ namespace Digi.Ladder
             JUMP_OFF,
         }
 
+        public static LadderMod instance = null;
+
         private bool init = false;
+        private bool isServer = false;
         private bool isDedicated = false;
+        private Settings settings = null;
 
         private IMyCharacter character = null;
         private MyCharacterDefinition characterDefinition = null;
@@ -114,8 +113,6 @@ namespace Digi.Ladder
 
         private MyCubeBlockDefinition prevCubeBuilderDefinition = null;
 
-        public Settings settings = null;
-
         //private MyEntity debugBox = null; // UNDONE DEBUG
 
         private const string LEARNFILE = "learned";
@@ -131,19 +128,30 @@ namespace Digi.Ladder
             "Crouch or turn on jetpack to dismount"
         };
 
-        public static readonly MySoundPair soundStep = new MySoundPair("PlayerLadderStep");
+        public readonly HashSet<string> ladderIds = new HashSet<string>()
+        {
+            "LargeShipUsableLadder",
+            "SmallShipUsableLadder",
+            "SmallShipUsableLadderSegment",
+            "LargeShipUsableLadderRetractable",
+            "SmallShipUsableLadderRetractable"
+        };
 
-        public static IMyHudNotification status;
-        public static Dictionary<long, IMyTerminalBlock> ladders = new Dictionary<long, IMyTerminalBlock>();
+        private readonly MySoundPair soundStep = new MySoundPair("PlayStepsMetal");
+        private readonly Dictionary<long, MyEntity3DSoundEmitter> soundEmitters = new Dictionary<long, MyEntity3DSoundEmitter>();
+        private short skipCleanEmitters = 0;
 
-        private PlayerOnLadder myLadderStatus = new PlayerOnLadder();
+        public static readonly Dictionary<long, IMyTerminalBlock> ladders = new Dictionary<long, IMyTerminalBlock>();
+
+        private IMyHudNotification status = null;
+        private readonly PlayerOnLadder myLadderStatus = new PlayerOnLadder();
         private Dictionary<ulong, PlayerOnLadder> playersOnLadder = null;
-        private List<ulong> removePlayersOnLadder = new List<ulong>();
+        private readonly List<ulong> removePlayersOnLadder = new List<ulong>();
 
-        private HashSet<IMyEntity> ents = new HashSet<IMyEntity>();
-        public static List<IMyPlayer> players = new List<IMyPlayer>();
+        private readonly HashSet<IMyEntity> ents = new HashSet<IMyEntity>();
+        public readonly List<IMyPlayer> players = new List<IMyPlayer>();
 
-        private static readonly StringBuilder tmp = new StringBuilder();
+        private readonly StringBuilder tmp = new StringBuilder();
 
         public const float ALIGN_STEP = 0.01f;
         public const float ALIGN_MUL = 1.2f;
@@ -159,7 +167,7 @@ namespace Digi.Ladder
         public const char SEPARATOR = ' ';
         public const int STEP_RANGE_SQ = 100 * 100;
 
-        public static readonly Encoding encode = Encoding.Unicode;
+        public readonly Encoding encode = Encoding.Unicode;
 
         public const int LADDER_HIGHLIGHT_PULSE = 300;
 
@@ -167,7 +175,7 @@ namespace Digi.Ladder
 
         public const string LEARN_UNCHECK = "[  ] ";
         public const string LEARN_CHECK = "[x] ";
-        public static readonly MyStringId CUSTOMTEXT = MyStringId.GetOrCompute("{0}");
+        public readonly MyStringId CUSTOMTEXT = MyStringId.GetOrCompute("{0}");
 
         private LadderAnimation lastLadderAnim = LadderAnimation.NONE;
 
@@ -181,7 +189,7 @@ namespace Digi.Ladder
 
         private const int COLLISSIONLAYER_NOCHARACTER = 30;
 
-        public static string[] ladderAnimations = new string[]
+        private readonly string[] ladderAnimations = new string[]
         {
             null,
             "Mod_LadderMounting",
@@ -195,8 +203,10 @@ namespace Digi.Ladder
 
         public void Init()
         {
+            instance = this;
             init = true;
-            isDedicated = MyAPIGateway.Multiplayer.IsServer && MyAPIGateway.Utilities.IsDedicated;
+            isServer = MyAPIGateway.Multiplayer.IsServer;
+            isDedicated = isServer && MyAPIGateway.Utilities.IsDedicated;
 
             Log.Init();
 
@@ -336,10 +346,12 @@ namespace Digi.Ladder
         {
             try
             {
+                instance = null;
+                ladders.Clear();
+
                 if(init)
                 {
                     init = false;
-                    ladders.Clear();
 
                     if(MyAPIGateway.Multiplayer.IsServer)
                     {
@@ -384,7 +396,14 @@ namespace Digi.Ladder
                 if(MyAPIGateway.Entities.EntityExists(entId))
                 {
                     var ent = MyAPIGateway.Entities.GetEntityById(entId);
-                    var emitter = new MyEntity3DSoundEmitter(ent as MyEntity);
+                    MyEntity3DSoundEmitter emitter;
+
+                    if(!soundEmitters.TryGetValue(entId, out emitter))
+                    {
+                        emitter = new MyEntity3DSoundEmitter(ent as MyEntity);
+                        soundEmitters.Add(entId, emitter);
+                    }
+
                     emitter.PlaySound(soundStep, false, false, false);
                 }
             }
@@ -523,9 +542,9 @@ namespace Digi.Ladder
         }
 
 #if STABLE // HACK >>> STABLE condition
-        public static void SetLadderStatus(string text, MyFontEnum font, int aliveTime = 100)
+        public void SetLadderStatus(string text, MyFontEnum font, int aliveTime = 100)
 #else
-        public static void SetLadderStatus(string text, string font, int aliveTime = 100)
+        public void SetLadderStatus(string text, string font, int aliveTime = 100)
 #endif
         {
             if(status == null)
@@ -592,7 +611,31 @@ namespace Digi.Ladder
                     Init();
                 }
 
-                if(MyAPIGateway.Multiplayer.IsServer && playersOnLadder != null && playersOnLadder.Count > 0)
+                if(++skipCleanEmitters > 3600)
+                {
+                    List<long> removeKeys = null;
+
+                    foreach(var entId in soundEmitters.Keys)
+                    {
+                        if(!MyAPIGateway.Entities.EntityExists(entId))
+                        {
+                            if(removeKeys == null)
+                                removeKeys = new List<long>();
+
+                            removeKeys.Add(entId);
+                        }
+                    }
+
+                    if(removeKeys != null)
+                    {
+                        foreach(var key in removeKeys)
+                        {
+                            soundEmitters.Remove(key);
+                        }
+                    }
+                }
+
+                if(isServer && playersOnLadder != null && playersOnLadder.Count > 0)
                 {
                     foreach(var kv in playersOnLadder) // server side loop for ladder movement
                     {
@@ -742,7 +785,6 @@ namespace Digi.Ladder
 
                     PlayerUpdate();
 
-#if !STABLE // STABLE CONDITION
                     if(!aimingAtLadder && highlightedLadders.Count > 0)
                     {
                         foreach(var id in highlightedLadders)
@@ -752,7 +794,6 @@ namespace Digi.Ladder
 
                         highlightedLadders.Clear();
                     }
-#endif
                 }
             }
             catch(Exception e)
@@ -793,7 +834,7 @@ namespace Digi.Ladder
                 // Dynamically enable/disable UseModelIntersection on ladder blocks that you hold to have the useful effect
                 // of being able the block when another entity is blocking the grid space but not the blocks's physical shape.
                 // This will still have the side effect issue if you aim at a ladder block with the same ladder block.
-                if(cb.IsActivated && cb.CubeBuilderState != null && cb.CubeBuilderState.CurrentBlockDefinition != null && LadderLogic.ladderIds.Contains(cb.CubeBuilderState.CurrentBlockDefinition.Id.SubtypeName))
+                if(cb.IsActivated && cb.CubeBuilderState != null && cb.CubeBuilderState.CurrentBlockDefinition != null && ladderIds.Contains(cb.CubeBuilderState.CurrentBlockDefinition.Id.SubtypeName))
                 {
                     if(prevCubeBuilderDefinition == null || prevCubeBuilderDefinition.Id != cb.CubeBuilderState.CurrentBlockDefinition.Id)
                     {
@@ -1015,7 +1056,6 @@ namespace Digi.Ladder
 
                                 if(!pressed)
                                 {
-#if !STABLE // STABLE CONDITION
                                     if(!highlightedLadders.Contains(ladder.EntityId))
                                     {
                                         if(highlightedLadders.Count > 0)
@@ -1061,7 +1101,6 @@ namespace Digi.Ladder
                                             MyVisualScriptLogicProvider.SetHighlight(LADDER_NAME_PREFIX + id, true, thick, LADDER_HIGHLIGHT_PULSE, color);
                                         }
                                     }
-#endif
 
                                     SetLadderStatus("Press " + InputHandler.GetFriendlyStringOr(settings.useLadder1, settings.useLadder2) + " to use the ladder.", MyFontEnum.White);
                                     return;
@@ -1259,16 +1298,25 @@ namespace Digi.Ladder
                         }
                     }
 
-                    // TODO find a way to control view
+                    // DEBUG find a way to control view
                     {
-                        //var ctrl2 = (Sandbox.Game.Entities.IMyControllableEntity)character;
-                        //
-                        //ctrl2.HeadLocalYAngle = 0;
-                        //ctrl2.HeadLocalXAngle = 0;
-                        //
-                        // or MoveAndRotate() ?
-                        // or... angularvelocity ?
-                        // or I dunno!
+                        // only works for vertical
+                        //charCtrl.HeadLocalYAngle = 0;
+                        //charCtrl.HeadLocalXAngle = 0;
+
+                        //MyAPIGateway.Session.CameraController.Rotate(new Vector2(0, -5f), 0); // only works for vertical
+
+                        //charCtrl.MoveAndRotate(Vector3.Zero, new Vector2(0, -5f), 5f); // only works for vertical
+
+                        //character.Physics.AngularVelocity += Vector3.One * 10000000; // does nothing
+
+                        //character.Physics.AddForce(MyPhysicsForceType.ADD_BODY_FORCE_AND_BODY_TORQUE, null, null, Vector3.One * 1000000000000); // doesn't quite work
+
+                        //character.Physics.SetSpeeds(Vector3.Zero, Vector3.One * 10000000); // moves weirdly
+
+                        //or MoveAndRotate() ?
+                        //or...angularvelocity ?
+                        //or I dunno!
                     }
 
                     if(Math.Abs(move) > 0.0001f)
@@ -1287,7 +1335,7 @@ namespace Digi.Ladder
                             var slim = ladder.CubeGrid.GetCubeBlock(nextBlockPos);
 
                             // if the next block is not a ladder, dismount
-                            if(slim == null || !(slim.FatBlock is IMyTerminalBlock) || !LadderLogic.ladderIds.Contains(slim.FatBlock.BlockDefinition.SubtypeId))
+                            if(slim == null || !(slim.FatBlock is IMyTerminalBlock) || !ladderIds.Contains(slim.FatBlock.BlockDefinition.SubtypeId))
                             {
                                 dismounting = ALIGN_STEP;
                                 SendLadderData(LadderAction.DISMOUNT);
@@ -1310,7 +1358,7 @@ namespace Digi.Ladder
                                 var slim = ladder.CubeGrid.GetCubeBlock(prevBlockPos);
 
                                 // if it's not a ladder, check the distance and confirm your feet are close to its edge
-                                if(slim == null || !(slim.FatBlock is IMyTerminalBlock) || !LadderLogic.ladderIds.Contains(slim.FatBlock.BlockDefinition.SubtypeId))
+                                if(slim == null || !(slim.FatBlock is IMyTerminalBlock) || !ladderIds.Contains(slim.FatBlock.BlockDefinition.SubtypeId))
                                 {
                                     // get the block's edge and the character feet position only along the ladder's up/down axis
                                     var blockPosProjectedUp = ladderMatrix.Up * Vector3D.Dot(prevBlockWorldPos, ladderMatrix.Up);
@@ -1514,18 +1562,11 @@ namespace Digi.Ladder
 
     public class LadderLogic : MyGameLogicComponent
     {
-        public static readonly HashSet<string> ladderIds = new HashSet<string>()
-        {
-            "LargeShipUsableLadder",
-            "SmallShipUsableLadder",
-            "SmallShipUsableLadderSegment",
-            "LargeShipUsableLadderRetractable",
-            "SmallShipUsableLadderRetractable"
-        };
-
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
         {
             Entity.NeedsUpdate |= MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
+
+            // name needed for highlighting
             Entity.Name = LadderMod.LADDER_NAME_PREFIX + Entity.EntityId;
             MyEntities.SetEntityName((MyEntity)Entity, true);
         }

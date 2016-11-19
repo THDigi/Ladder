@@ -1,8 +1,7 @@
 ﻿using System;
-using System.Linq;
 using VRageMath;
 
-namespace Digi.Utils
+namespace Digi
 {
     public static class PacketHandler
     {

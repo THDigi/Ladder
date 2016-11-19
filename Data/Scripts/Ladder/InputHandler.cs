@@ -1,16 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using Sandbox.Game;
 using Sandbox.ModAPI;
+using VRage.Game.ModAPI;
 using VRage.Input;
 using VRage.Utils;
 using VRageMath;
-using Digi.Utils;
-using VRage.Game.ModAPI;
 
-namespace Digi.Utils
+namespace Digi
 {
     public class ControlCombination
     {
