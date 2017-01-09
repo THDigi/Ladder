@@ -23,9 +23,11 @@ namespace Digi
             return combinationString;
         }
 
-        public string GetFriendlyString(bool xboxChars = true)
+        public string GetFriendlyString(bool xboxChars = true, bool checkGamepadUsed = false)
         {
             var combined = new List<string>();
+            int gamepadInputs = 0;
+            int otherInputs = 0;
 
             foreach(var o in combination)
             {
@@ -49,19 +51,35 @@ namespace Digi
                     {
                         combined.Add(InputHandler.inputNames[control]);
                     }
+
+                    otherInputs++;
                 }
-                else if(xboxChars && (o is MyJoystickAxesEnum || o is MyJoystickButtonsEnum))
+                else if(o is MyJoystickAxesEnum || o is MyJoystickButtonsEnum)
                 {
-                    char c = InputHandler.xboxCodes.GetValueOrDefault(o, ' ');
-                    combined.Add(c == ' ' ? InputHandler.inputNames[o] : c.ToString());
+                    gamepadInputs++;
+
+                    if(xboxChars)
+                    {
+                        char c = InputHandler.xboxCodes.GetValueOrDefault(o, ' ');
+                        combined.Add(c == ' ' ? InputHandler.inputNames[o] : c.ToString());
+                    }
+                    else
+                    {
+                        combined.Add(InputHandler.inputNames[o]);
+                    }
                 }
                 else
                 {
+                    otherInputs++;
+
                     combined.Add(InputHandler.inputNames[o]);
                 }
             }
+            
+            if(checkGamepadUsed && gamepadInputs > 0 && otherInputs == 0 && !MyAPIGateway.Input.IsJoystickLastUsed)
+                return null; // only gamepad inputs in the combination but no gamepad connecte, return null.
 
-            return String.Join(" ", combined);
+            return string.Join(" ", combined);
         }
 
         public static ControlCombination CreateFrom(string combinationString, bool logErrors = false)
@@ -115,7 +133,7 @@ namespace Digi
         public const string MOUSE_PREFIX = "m.";
         public const string GAMEPAD_PREFIX = "g.";
         public const string CONTROL_PREFIX = "c.";
-        
+
         private static readonly StringBuilder tmp = new StringBuilder();
 
         private const float EPSILON = 0.000001f;
@@ -768,13 +786,18 @@ namespace Digi
             tmp.Clear();
 
             if(input1 != null)
-                tmp.Append(input1.GetFriendlyString().ToUpper());
+            {
+                var primary = input1.GetFriendlyString(true, true);
+
+                if(!string.IsNullOrWhiteSpace(primary))
+                    tmp.Append(primary.ToUpper());
+            }
 
             if(input2 != null)
             {
-                string secondary = input2.GetFriendlyString();
+                string secondary = input2.GetFriendlyString(true, true);
 
-                if(secondary.Length > 0)
+                if(!string.IsNullOrWhiteSpace(secondary))
                 {
                     if(tmp.Length > 0)
                         tmp.Append(" or ");

@@ -183,10 +183,12 @@
 				<MountPoint Side="Top" StartX="0.62" StartY="0.04" EndX="0.64" EndY="0.08" />
 				<MountPoint Side="Top" StartX="0.36" StartY="-0.03" EndX="0.64" EndY="0.00" />
 				<!-- empty mount points fixes the adv door sealing air when closed -->
+				<!-- commented out because they allow placement on these faces now which isn't good...
 				<MountPoint Side="Left" StartX="0" StartY="0" EndX="0" EndY="0" />
 				<MountPoint Side="Right" StartX="0" StartY="0" EndX="0" EndY="0" />
 				<MountPoint Side="Bottom" StartX="0" StartY="0" EndX="0" EndY="0" />
 				<MountPoint Side="Front" StartX="0" StartY="0" EndX="0" EndY="0" />
+				-->
 			</MountPoints>
 			<MirroringZ>Y</MirroringZ>
 			<EdgeType>Light</EdgeType>
@@ -295,10 +297,12 @@
 				<MountPoint Side="Top" StartX="2.09" StartY="0.21" EndX="2.21" EndY="0.39" />
 				<MountPoint Side="Top" StartX="0.81" StartY="-0.14" EndX="2.21" EndY="-0.02" />
 				<!-- empty mount points fixes the adv door sealing air when closed -->
+				<!-- commented out because they allow placement on these faces now which isn't good...
 				<MountPoint Side="Left" StartX="0" StartY="0" EndX="0" EndY="0" />
 				<MountPoint Side="Right" StartX="0" StartY="0" EndX="0" EndY="0" />
 				<MountPoint Side="Bottom" StartX="0" StartY="0" EndX="0" EndY="0" />
 				<MountPoint Side="Front" StartX="0" StartY="0" EndX="0" EndY="0" />
+				-->
 			</MountPoints>
 			<MirroringZ>Y</MirroringZ>
 			<EdgeType>Light</EdgeType>

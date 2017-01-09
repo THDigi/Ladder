@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using Sandbox.Common.ObjectBuilders;
 using Sandbox.Definitions;
@@ -58,7 +59,7 @@ namespace Digi.Ladder
                                                     {
                                                         if(Vector3D.DistanceSquared(p.GetPosition(), position) <= STEP_RANGE_SQ)
                                                         {
-                                                            MyAPIGateway.Multiplayer.SendMessageTo(PACKET_STEP, bytes, p.SteamUserId, false); // TODO mix this packet into the other packet
+                                                            MyAPIGateway.Multiplayer.SendMessageTo(PACKET_STEP, bytes, p.SteamUserId, false); // TODO mix this packet into the other packet?
                                                         }
 
                                                         return false;
@@ -101,6 +102,7 @@ namespace Digi.Ladder
         private MyCharacterDefinition characterDefinition = null;
         private MyCharacterMovementEnum characterMovementState = MyCharacterMovementEnum.Died;
         private IMyTerminalBlock usingLadder = null;
+        private IMyTerminalBlock foundLadder = null;
         private float mounting = 2f;
         private float dismounting = 2;
         private MyOrientedBoundingBoxD ladderBox = new MyOrientedBoundingBoxD();
@@ -109,7 +111,8 @@ namespace Digi.Ladder
         private bool alignedToGravity = false;
         private bool grabOnLoad = false;
         private bool aimingAtLadder = false;
-        private HashSet<long> highlightedLadders = new HashSet<long>();
+        private IMyTerminalBlock highlightedLadderCenter = null;
+        private List<string> highlightedLadders = new List<string>();
 
         private MyCubeBlockDefinition prevCubeBuilderDefinition = null;
 
@@ -404,7 +407,7 @@ namespace Digi.Ladder
                         soundEmitters.Add(entId, emitter);
                     }
 
-                    emitter.PlaySound(soundStep, false, false, false);
+                    emitter.PlaySound(soundStep);
                 }
             }
             catch(Exception e)
@@ -492,10 +495,10 @@ namespace Digi.Ladder
                         }
                     case LadderAction.JUMP_OFF:
                         {
-                            var jumpDir = new Vector3D(BitConverter.ToDouble(bytes, index),
-                                                       BitConverter.ToDouble(bytes, index + sizeof(double)),
-                                                       BitConverter.ToDouble(bytes, index + sizeof(double) * 2));
-                            index += sizeof(double) * 3;
+                            var jumpDir = new Vector3(BitConverter.ToSingle(bytes, index),
+                                                       BitConverter.ToSingle(bytes, index + sizeof(float)),
+                                                       BitConverter.ToSingle(bytes, index + sizeof(float) * 2));
+                            index += sizeof(float) * 3;
 
                             ld.character.Physics.LinearVelocity += jumpDir * (ld.characterDefinition == null ? VEL_JUMP : ld.characterDefinition.Mass * ld.characterDefinition.JumpForce) * TICKRATE;
                             ld.StepSound(0);
@@ -541,11 +544,7 @@ namespace Digi.Ladder
             }
         }
 
-#if STABLE // HACK >>> STABLE condition
-        public void SetLadderStatus(string text, MyFontEnum font, int aliveTime = 100)
-#else
         public void SetLadderStatus(string text, string font, int aliveTime = 100)
-#endif
         {
             if(status == null)
             {
@@ -708,7 +707,7 @@ namespace Digi.Ladder
 
                                     float align = Vector3.Dot(ladderMatrix.Up, ld.character.WorldMatrix.Up);
 
-                                    var matrix = MatrixD.CreateFromDir(ladderMatrix.Backward, (align > 0 ? ladderMatrix.Up : ladderMatrix.Down));
+                                    var matrix = MatrixD.CreateFromDir(ladderMatrix.Backward, (align >= 0.1f ? ladderMatrix.Up : ladderMatrix.Down));
                                     var halfY = ((ladderInternal.BlockDefinition.Size.Y * ld.ladder.CubeGrid.GridSize) / 2);
                                     var diff = Vector3D.Dot(ld.character.WorldMatrix.Translation, ladderMatrix.Up) - Vector3D.Dot(charOnLadder, ladderMatrix.Up);
                                     matrix.Translation = charOnLadder + ladderMatrix.Up * MathHelper.Clamp(diff, -halfY, halfY);
@@ -785,14 +784,19 @@ namespace Digi.Ladder
 
                     PlayerUpdate();
 
-                    if(!aimingAtLadder && highlightedLadders.Count > 0)
+                    if(!aimingAtLadder && highlightedLadderCenter != null)
                     {
-                        foreach(var id in highlightedLadders)
-                        {
-                            MyVisualScriptLogicProvider.SetHighlight(LADDER_NAME_PREFIX + id, false);
-                        }
+                        highlightedLadderCenter = null;
 
-                        highlightedLadders.Clear();
+                        if(highlightedLadders.Count > 0)
+                        {
+                            foreach(var name in highlightedLadders)
+                            {
+                                MyVisualScriptLogicProvider.SetHighlight(name, false);
+                            }
+
+                            highlightedLadders.Clear();
+                        }
                     }
                 }
             }
@@ -800,6 +804,80 @@ namespace Digi.Ladder
             {
                 Log.Error(e);
             }
+        }
+
+        private bool CheckLadder(IMyTerminalBlock l, RayD charRay, Vector3D charPos2)
+        {
+            if(Vector3D.DistanceSquared(l.WorldMatrix.Translation, charRay.Position) <= UPDATE_RADIUS)
+            {
+                var ladderInternal = l as MyCubeBlock;
+                var ladderMatrix = l.WorldMatrix;
+
+                // update ladder oriented box to find character in it accurately
+                Quaternion.CreateFromRotationMatrix(ref ladderMatrix, out ladderBox.Orientation);
+
+                if(l is MyAdvancedDoor && !(l as MyAdvancedDoor).FullyOpen)
+                {
+                    ladderBox.HalfExtent = (ladderInternal.BlockDefinition.Size * l.CubeGrid.GridSize) / 2;
+
+                    var offset = ladderInternal.BlockDefinition.ModelOffset;
+                    ladderBox.Center = ladderMatrix.Translation + ladderMatrix.Up * 1.125f + ladderMatrix.Forward * (offset.Z + EXTRA_OFFSET_Z);
+
+                    ladderBox.HalfExtent.Y = 0.25 + 0.06; // 6mm offset to avoid some inaccuracies
+                    ladderBox.HalfExtent.Z = 0.5;
+
+                    if(l.CubeGrid.GridSizeEnum == MyCubeSize.Large)
+                        ladderBox.Center += ladderMatrix.Backward;
+                }
+                else
+                {
+                    ladderBox.HalfExtent = (ladderInternal.BlockDefinition.Size * l.CubeGrid.GridSize) / 2;
+                    ladderBox.HalfExtent.Y += 0.06; // 6mm offset to avoid some inaccuracies
+                    ladderBox.HalfExtent.Z = 0.5;
+
+                    var offset = ladderInternal.BlockDefinition.ModelOffset;
+                    ladderBox.Center = ladderMatrix.Translation + ladderMatrix.Forward * (offset.Z + EXTRA_OFFSET_Z);
+
+                    if(l.CubeGrid.GridSizeEnum == MyCubeSize.Large)
+                        ladderBox.Center += ladderMatrix.Backward;
+                }
+
+                if(!ladderBox.Contains(ref charRay.Position) && !ladderBox.Contains(ref charPos2))
+                {
+                    var intersect = ladderBox.Intersects(ref charRay);
+
+                    if(!intersect.HasValue || intersect.Value < 0 || intersect.Value > RAY_HEIGHT)
+                        return false;
+                }
+
+                // UNDONE DEBUG
+                //{
+                //    {
+                //        var c = Color.Red.ToVector4();
+                //        MySimpleObjectDraw.DrawLine(ladderBox.Center + ladderMatrix.Down * ladderBox.HalfExtent.Y, ladderBox.Center + ladderMatrix.Up * ladderBox.HalfExtent.Y, "WeaponLaserIgnoreDepth", ref c, 0.01f);
+                //    }
+                //
+                //    if(debugBox == null)
+                //    {
+                //        debugBox = new MyEntity();
+                //        debugBox.Init(null, @"Models\Debug\Error.mwm", null, null, null);
+                //        debugBox.PositionComp.LocalMatrix = Matrix.Identity;
+                //        debugBox.Flags = EntityFlags.Visible | EntityFlags.NeedsDraw | EntityFlags.NeedsDrawFromParent | EntityFlags.InvalidateOnMove;
+                //        debugBox.OnAddedToScene(null);
+                //        debugBox.Render.Transparency = 0.5f;
+                //        debugBox.Render.RemoveRenderObjects();
+                //        debugBox.Render.AddRenderObjects();
+                //    }
+                //    var matrix = MatrixD.CreateWorld(ladderBox.Center, ladderMatrix.Forward, ladderMatrix.Up);
+                //    var scale = ladderBox.HalfExtent * 2;
+                //    MatrixD.Rescale(ref matrix, ref scale);
+                //    debugBox.PositionComp.SetWorldMatrix(matrix);
+                //}
+
+                return true;
+            }
+
+            return false;
         }
 
         private void PlayerUpdate()
@@ -853,13 +931,12 @@ namespace Digi.Ladder
 
                 var charCtrl = character as IMyControllableEntity;
                 bool controllingCharacter = (playerControlled != null && playerControlled.Entity is IMyCharacter);
-                IMyTerminalBlock ladder = null;
-                MyCubeBlock ladderInternal = null;
+                var ladder = usingLadder ?? foundLadder;
 
-                MatrixD ladderMatrix = character.WorldMatrix; // temporarily using it for character matrix, then used for ladder matrix
-                var charPos = ladderMatrix.Translation + ladderMatrix.Up * 0.05;
-                var charPos2 = ladderMatrix.Translation + ladderMatrix.Up * RAY_HEIGHT;
-                var charRay = new RayD(charPos, ladderMatrix.Up);
+                var charmatrix = character.WorldMatrix;
+                var charPos = charmatrix.Translation + charmatrix.Up * 0.05;
+                var charPos2 = charmatrix.Translation + charmatrix.Up * RAY_HEIGHT;
+                var charRay = new RayD(charPos, charmatrix.Up);
 
                 if(dismounting <= 1) // relative top dismount sequence
                 {
@@ -870,12 +947,12 @@ namespace Digi.Ladder
                     }
 
                     ladder = usingLadder;
-                    ladderInternal = ladder as MyCubeBlock;
+                    var ladderInternal = (MyCubeBlock)ladder;
                     dismounting *= ALIGN_MUL;
 
                     if(settings.clientPrediction)
                     {
-                        ladderMatrix = ladder.WorldMatrix;
+                        var ladderMatrix = ladder.WorldMatrix;
                         var charOnLadder = ladderMatrix.Translation + ladderMatrix.Forward * (ladderInternal.BlockDefinition.ModelOffset.Z + EXTRA_OFFSET_Z);
 
                         if(ladder.CubeGrid.GridSizeEnum == MyCubeSize.Large)
@@ -891,7 +968,7 @@ namespace Digi.Ladder
                         character.Physics.LinearVelocity = ladder.CubeGrid.Physics.GetVelocityAtPoint(character.WorldMatrix.Translation); // sync velocity with the ladder
                     }
 
-                    SetLadderStatus("Dismounting ladder...", MyFontEnum.White);
+                    //SetLadderStatus("Dismounting ladder...", MyFontEnum.White);
 
                     if(dismounting > 1f)
                         ExitLadder(false);
@@ -905,86 +982,32 @@ namespace Digi.Ladder
                 //    MySimpleObjectDraw.DrawLine(charPos, charPos2, "WeaponLaserIgnoreDepth", ref c, 0.5f);
                 //}
 
-                // find a ladder
-                foreach(var l in ladders.Values)
+                #region Find a ladder
+                // re-check last found ladder
+                if(ladder != null && !CheckLadder(ladder, charRay, charPos2))
+                    ladder = null;
+
+                if(ladder == null)
                 {
-                    if(l.Closed || l.MarkedForClose || !l.IsFunctional)
-                        continue;
-
-                    if(Vector3D.DistanceSquared(l.WorldMatrix.Translation, charPos) <= UPDATE_RADIUS)
+                    foreach(var l in ladders.Values)
                     {
-                        ladderInternal = l as MyCubeBlock;
-                        ladderMatrix = l.WorldMatrix;
+                        if(l.Closed || l.MarkedForClose || !l.IsFunctional)
+                            continue;
 
-                        // update ladder oriented box to find character in it accurately
-                        Quaternion.CreateFromRotationMatrix(ref ladderMatrix, out ladderBox.Orientation);
-
-                        if(l is MyAdvancedDoor && !(l as MyAdvancedDoor).FullyOpen)
+                        if(CheckLadder(l, charRay, charPos2))
                         {
-                            ladderBox.HalfExtent = (ladderInternal.BlockDefinition.Size * l.CubeGrid.GridSize) / 2;
-
-                            var offset = ladderInternal.BlockDefinition.ModelOffset;
-                            ladderBox.Center = ladderMatrix.Translation + ladderMatrix.Up * 1.125f + ladderMatrix.Forward * (offset.Z + EXTRA_OFFSET_Z);
-
-                            ladderBox.HalfExtent.Y = 0.25 + 0.06; // 6mm offset to avoid some inaccuracies
-                            ladderBox.HalfExtent.Z = 0.5;
-
-                            if(l.CubeGrid.GridSizeEnum == MyCubeSize.Large)
-                                ladderBox.Center += ladderMatrix.Backward;
+                            ladder = l;
+                            break;
                         }
-                        else
-                        {
-                            ladderBox.HalfExtent = (ladderInternal.BlockDefinition.Size * l.CubeGrid.GridSize) / 2;
-                            ladderBox.HalfExtent.Y += 0.06; // 6mm offset to avoid some inaccuracies
-                            ladderBox.HalfExtent.Z = 0.5;
-
-                            var offset = ladderInternal.BlockDefinition.ModelOffset;
-                            ladderBox.Center = ladderMatrix.Translation + ladderMatrix.Forward * (offset.Z + EXTRA_OFFSET_Z);
-
-                            if(l.CubeGrid.GridSizeEnum == MyCubeSize.Large)
-                                ladderBox.Center += ladderMatrix.Backward;
-                        }
-
-                        if(!ladderBox.Contains(ref charPos) && !ladderBox.Contains(ref charPos2))
-                        {
-                            var intersect = ladderBox.Intersects(ref charRay);
-
-                            if(!intersect.HasValue || intersect.Value < 0 || intersect.Value > RAY_HEIGHT)
-                                continue;
-                        }
-
-                        // UNDONE DEBUG
-                        //{
-                        //    {
-                        //        var c = Color.Red.ToVector4();
-                        //        MySimpleObjectDraw.DrawLine(ladderBox.Center + ladderMatrix.Down * ladderBox.HalfExtent.Y, ladderBox.Center + ladderMatrix.Up * ladderBox.HalfExtent.Y, "WeaponLaserIgnoreDepth", ref c, 0.01f);
-                        //    }
-                        //
-                        //    if(debugBox == null)
-                        //    {
-                        //        debugBox = new MyEntity();
-                        //        debugBox.Init(null, @"Models\Debug\Error.mwm", null, null, null);
-                        //        debugBox.PositionComp.LocalMatrix = Matrix.Identity;
-                        //        debugBox.Flags = EntityFlags.Visible | EntityFlags.NeedsDraw | EntityFlags.NeedsDrawFromParent | EntityFlags.InvalidateOnMove;
-                        //        debugBox.OnAddedToScene(null);
-                        //        debugBox.Render.Transparency = 0.5f;
-                        //        debugBox.Render.RemoveRenderObjects();
-                        //        debugBox.Render.AddRenderObjects();
-                        //    }
-                        //    var matrix = MatrixD.CreateWorld(ladderBox.Center, ladderMatrix.Forward, ladderMatrix.Up);
-                        //    var scale = ladderBox.HalfExtent * 2;
-                        //    MatrixD.Rescale(ref matrix, ref scale);
-                        //    debugBox.PositionComp.SetWorldMatrix(matrix);
-                        //}
-
-                        ladder = l;
-                        ladderInternal = l as MyCubeBlock;
-                        break;
                     }
                 }
+                #endregion Find a ladder
 
+                #region Ladder client logic
                 if(ladder != null)
                 {
+                    var ladderInternal = (MyCubeBlock)ladder;
+                    var ladderMatrix = ladder.WorldMatrix;
                     var offset = ladderInternal.BlockDefinition.ModelOffset;
                     var charOnLadder = ladderMatrix.Translation + ladderMatrix.Forward * (offset.Z + EXTRA_OFFSET_Z);
 
@@ -1056,13 +1079,15 @@ namespace Digi.Ladder
 
                                 if(!pressed)
                                 {
-                                    if(!highlightedLadders.Contains(ladder.EntityId))
+                                    if(highlightedLadderCenter == null || highlightedLadderCenter.Closed || highlightedLadderCenter.EntityId != ladder.EntityId)
                                     {
+                                        highlightedLadderCenter = ladder;
+
                                         if(highlightedLadders.Count > 0)
                                         {
-                                            foreach(var id in highlightedLadders)
+                                            foreach(var name in highlightedLadders)
                                             {
-                                                MyVisualScriptLogicProvider.SetHighlight(LADDER_NAME_PREFIX + id, false);
+                                                MyVisualScriptLogicProvider.SetHighlight(name, false);
                                             }
 
                                             highlightedLadders.Clear();
@@ -1072,33 +1097,38 @@ namespace Digi.Ladder
                                         var color = envDef.ContourHighlightColor;
                                         var thick = (int)envDef.ContourHighlightThickness;
 
-                                        highlightedLadders.Add(ladder.EntityId);
+                                        highlightedLadders.Add(ladder.Name);
                                         MyVisualScriptLogicProvider.SetHighlight(ladder.Name, true, thick, LADDER_HIGHLIGHT_PULSE, color);
 
                                         var ladderGrid = ladder.CubeGrid;
+                                        const int scanBlocks = 3;
 
-                                        for(int i = 1; i <= 10; i++)
+                                        for(int i = 1; i <= scanBlocks; i++)
                                         {
                                             var slim = ladderGrid.GetCubeBlock(ladderGrid.WorldToGridInteger(ladderMatrix.Translation + ladderMatrix.Up * i * ladderGrid.GridSize));
 
                                             if(slim?.FatBlock?.GameLogic?.GetAs<LadderLogic>() == null)
                                                 break;
 
-                                            var id = slim.FatBlock.EntityId;
-                                            highlightedLadders.Add(id);
-                                            MyVisualScriptLogicProvider.SetHighlight(LADDER_NAME_PREFIX + id, true, thick, LADDER_HIGHLIGHT_PULSE, color);
+                                            highlightedLadders.Add(slim.FatBlock.Name);
+
+                                            float smoothStep = 1 - MathHelper.Clamp((i / (float)scanBlocks), 0f, 0.9f);
+                                            var thickness = Math.Max((int)(thick * smoothStep), 1);
+                                            MyVisualScriptLogicProvider.SetHighlight(slim.FatBlock.Name, true, thickness, LADDER_HIGHLIGHT_PULSE, (color * smoothStep));
                                         }
 
-                                        for(int i = 1; i <= 10; i++)
+                                        for(int i = 1; i <= scanBlocks; i++)
                                         {
                                             var slim = ladderGrid.GetCubeBlock(ladderGrid.WorldToGridInteger(ladderMatrix.Translation + ladderMatrix.Down * i * ladderGrid.GridSize));
 
                                             if(slim?.FatBlock?.GameLogic?.GetAs<LadderLogic>() == null)
                                                 break;
 
-                                            var id = slim.FatBlock.EntityId;
-                                            highlightedLadders.Add(id);
-                                            MyVisualScriptLogicProvider.SetHighlight(LADDER_NAME_PREFIX + id, true, thick, LADDER_HIGHLIGHT_PULSE, color);
+                                            highlightedLadders.Add(slim.FatBlock.Name);
+
+                                            float smoothStep = 1 - MathHelper.Clamp((i / (float)scanBlocks), 0f, 0.9f);
+                                            var thickness = Math.Max((int)(thick * smoothStep), 1);
+                                            MyVisualScriptLogicProvider.SetHighlight(slim.FatBlock.Name, true, thickness, LADDER_HIGHLIGHT_PULSE, (color * smoothStep));
                                         }
                                     }
 
@@ -1145,7 +1175,7 @@ namespace Digi.Ladder
                         {
                             float align = Vector3.Dot(ladderMatrix.Up, character.WorldMatrix.Up);
 
-                            var matrix = MatrixD.CreateFromDir(ladderMatrix.Backward, (align > 0 ? ladderMatrix.Up : ladderMatrix.Down));
+                            var matrix = MatrixD.CreateFromDir(ladderMatrix.Backward, (align >= 0.1f ? ladderMatrix.Up : ladderMatrix.Down));
                             var halfY = ((ladderInternal.BlockDefinition.Size.Y * ladder.CubeGrid.GridSize) / 2);
                             var diff = Vector3D.Dot(character.WorldMatrix.Translation, ladderMatrix.Up) - Vector3D.Dot(charOnLadder, ladderMatrix.Up);
                             matrix.Translation = charOnLadder + ladderMatrix.Up * MathHelper.Clamp(diff, -halfY, halfY);
@@ -1156,7 +1186,7 @@ namespace Digi.Ladder
                         if(mounting >= 0.75f && charCtrl.EnabledThrusts) // delayed turning off thrusts because gravity aligns you faster and can make you fail to attach to the ladder
                             charCtrl.SwitchThrusts();
 
-                        SetLadderStatus("Mounting ladder...", MyFontEnum.White);
+                        //SetLadderStatus("Mounting ladder...", MyFontEnum.White);
                         return;
                     }
 
@@ -1255,7 +1285,7 @@ namespace Digi.Ladder
                         ExitLadder(false);
                         return;
                     }
-
+                    
                     bool sprint = (characterDefinition != null && characterDefinition.Jetpack != null && MyAPIGateway.Input.IsGameControlPressed(MyControlsSpace.SPRINT));
 
                     if(Math.Abs(side) > 0.0001f)
@@ -1300,11 +1330,26 @@ namespace Digi.Ladder
 
                     // DEBUG find a way to control view
                     {
+                        //character.SetLocalMatrix(Matrix.CreateFromYawPitchRoll(2, 2, -2));
+
+                        //var m = character.WorldMatrix;
+                        //
+                        //var dotH = (float)ladderMatrix.Forward.Dot(m.Forward);
+                        //var ang = (float)ladderMatrix.Forward.Dot(m.Left) * 90;
+                        //MyAPIGateway.Utilities.ShowNotification("dotH=" + Math.Round(dotH, 2) + "; ang = " + Math.Round(ang, 2), 17); // DEBUG
+                        //
+                        //if(dotH > -1)
+                        //{
+                        //    m = MatrixD.CreateFromDir(ladderMatrix.Forward, m.Up);
+                        //    m.Translation = character.WorldMatrix.Translation;
+                        //    character.SetWorldMatrix(m);
+                        //}
+
                         // only works for vertical
                         //charCtrl.HeadLocalYAngle = 0;
                         //charCtrl.HeadLocalXAngle = 0;
 
-                        //MyAPIGateway.Session.CameraController.Rotate(new Vector2(0, -5f), 0); // only works for vertical
+                        //MyAPIGateway.Session.CameraController.Rotate(new Vector2(-5f, -5f), 5f); // only works for vertical
 
                         //charCtrl.MoveAndRotate(Vector3.Zero, new Vector2(0, -5f), 5f); // only works for vertical
 
@@ -1313,10 +1358,6 @@ namespace Digi.Ladder
                         //character.Physics.AddForce(MyPhysicsForceType.ADD_BODY_FORCE_AND_BODY_TORQUE, null, null, Vector3.One * 1000000000000); // doesn't quite work
 
                         //character.Physics.SetSpeeds(Vector3.Zero, Vector3.One * 10000000); // moves weirdly
-
-                        //or MoveAndRotate() ?
-                        //or...angularvelocity ?
-                        //or I dunno!
                     }
 
                     if(Math.Abs(move) > 0.0001f)
@@ -1398,12 +1439,13 @@ namespace Digi.Ladder
 
                     return;
                 }
+                #endregion Ladder client logic
             }
 
             ExitLadder();
         }
 
-        private void SendLadderData(LadderAction action, Vector3D? vec = null, long? entId = null, float? climb = null, float? side = null, bool? sprint = null)
+        private void SendLadderData(LadderAction action, Vector3? vec = null, long? entId = null, float? climb = null, float? side = null, bool? sprint = null)
         {
             //if(MyAPIGateway.Multiplayer.IsServer)
             //    return;
@@ -1437,7 +1479,7 @@ namespace Digi.Ladder
                 len += sizeof(long);
 
             if(vec.HasValue)
-                len += sizeof(double) * 3;
+                len += sizeof(float) * 3;
 
             if(climb.HasValue && side.HasValue && sprint.HasValue)
                 len += sizeof(float) * 2 + sizeof(bool);

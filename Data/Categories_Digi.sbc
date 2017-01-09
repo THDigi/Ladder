@@ -10,8 +10,6 @@
       <Name>z-mod-digi</Name>
       <ItemIds>
         <string>UsableLadder</string>
-        <string>UsableLadderSegment</string>
-        <string>UsableLadderRetractable</string>
       </ItemIds>
     </Category>
   </CategoryClasses>
