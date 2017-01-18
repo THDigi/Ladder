@@ -1285,7 +1285,7 @@ namespace Digi.Ladder
                         ExitLadder(false);
                         return;
                     }
-                    
+
                     bool sprint = (characterDefinition != null && characterDefinition.Jetpack != null && MyAPIGateway.Input.IsGameControlPressed(MyControlsSpace.SPRINT));
 
                     if(Math.Abs(side) > 0.0001f)
@@ -1607,26 +1607,33 @@ namespace Digi.Ladder
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
         {
             Entity.NeedsUpdate |= MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
-
-            // name needed for highlighting
-            Entity.Name = LadderMod.LADDER_NAME_PREFIX + Entity.EntityId;
-            MyEntities.SetEntityName((MyEntity)Entity, true);
         }
 
         public override void UpdateOnceBeforeFrame()
         {
-            var block = Entity as IMyTerminalBlock;
-
-            if(block.CubeGrid.Physics == null)
-                return;
-
-            if(block.BlockDefinition.TypeId != typeof(MyObjectBuilder_AdvancedDoor))
+            try
             {
-                block.SetValueBool("ShowInTerminal", false);
-                block.SetValueBool("ShowInToolbarConfig", false);
-            }
+                var block = Entity as IMyTerminalBlock;
 
-            LadderMod.ladders.Add(Entity.EntityId, block);
+                if(block.CubeGrid.Physics == null)
+                    return;
+
+                // name needed for highlighting
+                Entity.Name = LadderMod.LADDER_NAME_PREFIX + Entity.EntityId;
+                MyEntities.SetEntityName((MyEntity)Entity, true);
+
+                if(block.BlockDefinition.TypeId != typeof(MyObjectBuilder_AdvancedDoor))
+                {
+                    block.SetValueBool("ShowInTerminal", false);
+                    block.SetValueBool("ShowInToolbarConfig", false);
+                }
+
+                LadderMod.ladders.Add(Entity.EntityId, block);
+            }
+            catch(Exception e)
+            {
+                Log.Error(e);
+            }
         }
 
         public override void Close()
