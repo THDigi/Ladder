@@ -6,11 +6,13 @@ using Sandbox.Common.ObjectBuilders;
 using Sandbox.Definitions;
 using Sandbox.Game;
 using Sandbox.Game.Entities;
+using Sandbox.Game.Entities.Character.Components;
 using Sandbox.ModAPI;
 using Sandbox.ModAPI.Interfaces;
 using VRage.Game;
 using VRage.Game.Components;
 using VRage.Game.Entity;
+using VRage.Game.Entity.UseObject;
 using VRage.Game.ModAPI;
 using VRage.Input;
 using VRage.ModAPI;
@@ -1064,6 +1066,11 @@ namespace Digi.Ladder
                         }
                         else
                         {
+                            var useObject = character.Components?.Get<MyCharacterDetectorComponent>()?.UseObject;
+
+                            if(useObject != null)
+                                return; // player aims at something else, don't interact with ladder
+
                             aimingAtLadder = true;
 
                             if(settings.useLadder1 == null && settings.useLadder2 == null)

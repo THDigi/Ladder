@@ -174,8 +174,8 @@
 			<CriticalComponent Subtype="Computer" Index="0" />
 			<BuildTimeSeconds>12</BuildTimeSeconds>
 			<BuildProgressModels>
-				<Model BuildPercentUpperBound="0.5" File="Models\LadderRetractable_Build1.mwm" />
-				<Model BuildPercentUpperBound="1.0" File="Models\LadderRetractable_Build2.mwm" />
+				<Model BuildPercentUpperBound="0.5" File="Models\RetractableBuild\LadderRetractable_Build1.mwm" />
+				<Model BuildPercentUpperBound="1.0" File="Models\RetractableBuild\LadderRetractable_Build2.mwm" />
 			</BuildProgressModels>
 			<MountPoints>
 				<MountPoint Side="Back" StartX="0.36" StartY="0.80" EndX="0.64" EndY="1.00" />
@@ -278,18 +278,10 @@
 				<Component Subtype="Girder" Count="6" />
 			</Components>
 			<CriticalComponent Subtype="Computer" Index="0" />
-			<Components>
-				<Component Subtype="Construction" Count="10" />
-				<Component Subtype="SmallTube" Count="10" />
-				<Component Subtype="Motor" Count="2" />
-				<Component Subtype="Computer" Count="2" />
-				<Component Subtype="Girder" Count="6" />
-			</Components>
-			<CriticalComponent Subtype="Computer" Index="0" />
 			<BuildTimeSeconds>12</BuildTimeSeconds>
 			<BuildProgressModels>
-				<Model BuildPercentUpperBound="0.5" File="Models\LadderRetractable_Build1.mwm" />
-				<Model BuildPercentUpperBound="1.0" File="Models\LadderRetractable_Build2.mwm" />
+				<Model BuildPercentUpperBound="0.5" File="Models\RetractableBuild\LadderRetractable_Build1.mwm" />
+				<Model BuildPercentUpperBound="1.0" File="Models\RetractableBuild\LadderRetractable_Build2.mwm" />
 			</BuildProgressModels>
 			<MountPoints>
 				<MountPoint Side="Back" StartX="0.79" StartY="4.00" EndX="2.19" EndY="5.00" />
