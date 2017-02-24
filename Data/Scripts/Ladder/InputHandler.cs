@@ -600,21 +600,8 @@ namespace Digi
 
         public static bool IsInputReadable()
         {
-            // TODO detect properly: escape menu, F10 and F11 menus, mission screens, yes/no notifications.
-
             var GUI = MyAPIGateway.Gui;
-
-            if(GUI.ChatEntryVisible || GUI.GetCurrentScreen != MyTerminalPageEnum.None)
-                return false;
-
-            try // HACK ActiveGamePlayScreen throws NRE when called while not in a menu
-            {
-                return GUI.ActiveGamePlayScreen == null;
-            }
-            catch(Exception)
-            {
-                return true;
-            }
+            return !GUI.IsCursorVisible && !GUI.ChatEntryVisible;
         }
 
         public static void AppendNiceNamePrefix(string key, object obj, StringBuilder str)

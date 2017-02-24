@@ -102,7 +102,6 @@ namespace Digi.Ladder
 
         private IMyCharacter character = null;
         private MyCharacterDefinition characterDefinition = null;
-        private MyCharacterMovementEnum characterMovementState = MyCharacterMovementEnum.Died;
         private IMyTerminalBlock usingLadder = null;
         private IMyTerminalBlock foundLadder = null;
         private float mounting = 2f;
@@ -566,21 +565,12 @@ namespace Digi.Ladder
             if(character == ent || !(ent is IMyCharacter))
                 return;
 
-            if(character != null)
-                character.OnMovementStateChanged -= CharacterMovementStateChanged;
-
             character = ent as IMyCharacter;
 
             if(character == null)
                 return;
 
             characterDefinition = GetCharacterDefinitionFrom(ent);
-            character.OnMovementStateChanged += CharacterMovementStateChanged;
-        }
-
-        public void CharacterMovementStateChanged(MyCharacterMovementEnum oldState, MyCharacterMovementEnum newState)
-        {
-            characterMovementState = newState;
         }
 
         private MyCharacterDefinition GetCharacterDefinitionFrom(IMyEntity ent)
@@ -1034,7 +1024,7 @@ namespace Digi.Ladder
                         }
                     }
 
-                    //bool readInput = InputHandler.IsInputReadable(); // HACK use before GetPressedOr() once ActiveGameplayScreen's NRE is resolved
+                    bool readInput = InputHandler.IsInputReadable();
 
                     if(!alignedToGravity)
                     {
@@ -1208,18 +1198,14 @@ namespace Digi.Ladder
                         return;
                     }
 
-                    // HACK use once input reading NRE is fixed
-                    //if(!controllingCharacter) // disable ladder control if not controlling character
-                    //    readInput = false;
+                    if(!controllingCharacter) // disable ladder control if not controlling character
+                        readInput = false;
 
                     bool movingSideways = false;
-                    var analogInput = MyAPIGateway.Input.GetPositionDelta();
+                    var analogInput = Vector3.Zero;
 
-                    // HACK use in-line once NRE is fixed
-                    if(!controllingCharacter)
-                        analogInput = Vector3.Zero;
-                    else if(analogInput.LengthSquared() > 0 && !InputHandler.IsInputReadable())
-                        analogInput = Vector3.Zero;
+                    if(controllingCharacter && readInput)
+                        analogInput = MyAPIGateway.Input.GetPositionDelta();
 
                     if(analogInput.Y < 0) // crouch
                     {
@@ -1232,9 +1218,6 @@ namespace Digi.Ladder
 
                     float move = MathHelper.Clamp((float)Math.Round(-analogInput.Z, 1), -1, 1); // forward/backward
                     float side = MathHelper.Clamp((float)Math.Round(analogInput.X, 1), -1, 1); // left/right
-
-                    //float move = readInput ? MathHelper.Clamp(MyAPIGateway.Input.GetGameControlAnalogState(MyControlsSpace.FORWARD) - MyAPIGateway.Input.GetGameControlAnalogState(MyControlsSpace.BACKWARD), -1, 1) : 0;
-                    //float side = readInput ? MathHelper.Clamp(MyAPIGateway.Input.GetGameControlAnalogState(MyControlsSpace.STRAFE_RIGHT) - MyAPIGateway.Input.GetGameControlAnalogState(MyControlsSpace.STRAFE_LEFT), -1, 1) : 0;
                     var alignVertical = ladderMatrix.Up.Dot(character.WorldMatrix.Up);
 
                     if(!loadedAllLearned)
@@ -1274,7 +1257,7 @@ namespace Digi.Ladder
 
                     if(analogInput.Y > 0) // jump
                     {
-                        if(characterMovementState == MyCharacterMovementEnum.Jump) // this is still fine for avoiding jump as the character still is able to jump without needing feet on the ground
+                        if(character.CurrentMovementState == MyCharacterMovementEnum.Jump) // this is still fine for avoiding jump as the character still is able to jump without needing feet on the ground
                         {
                             ExitLadder(false); // only release if on the floor as the character will jump regardless
                             return;
@@ -1603,10 +1586,10 @@ namespace Digi.Ladder
         }
     }
 
-    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_AdvancedDoor), "LargeShipUsableLadderRetractable", "SmallShipUsableLadderRetractable")]
+    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_AdvancedDoor), true, "LargeShipUsableLadderRetractable", "SmallShipUsableLadderRetractable")]
     public class LadderRetractable : LadderLogic { }
 
-    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_TerminalBlock), "LargeShipUsableLadder", "SmallShipUsableLadder", "SmallShipUsableLadderSegment")]
+    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_TerminalBlock), true, "LargeShipUsableLadder", "SmallShipUsableLadder", "SmallShipUsableLadderSegment")]
     public class LadderBlock : LadderLogic { }
 
     public class LadderLogic : MyGameLogicComponent
@@ -1614,6 +1597,11 @@ namespace Digi.Ladder
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
         {
             Entity.NeedsUpdate |= MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
+        }
+
+        public override void Close()
+        {
+            LadderMod.ladders.Remove(Entity.EntityId);
         }
 
         public override void UpdateOnceBeforeFrame()
@@ -1641,16 +1629,6 @@ namespace Digi.Ladder
             {
                 Log.Error(e);
             }
-        }
-
-        public override void Close()
-        {
-            LadderMod.ladders.Remove(Entity.EntityId);
-        }
-
-        public override MyObjectBuilder_EntityBase GetObjectBuilder(bool copy = false)
-        {
-            return Entity.GetObjectBuilder(copy);
         }
     }
 }
