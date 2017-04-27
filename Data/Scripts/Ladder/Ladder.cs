@@ -1230,7 +1230,7 @@ namespace Digi.Ladder
                                 learnNotify[i] = MyAPIGateway.Utilities.CreateNotification("");
 
                             learnNotify[i].Text = (learned[i] ? LEARN_CHECK : LEARN_UNCHECK) + learnText[i];
-                            learnNotify[i].Font = (learned[i] ? MyFontEnum.White : MyFontEnum.DarkBlue);
+                            learnNotify[i].Font = (learned[i] ? MyFontEnum.DarkBlue : MyFontEnum.White);
                             learnNotify[i].AliveTime = (allLearned ? 1000 : 100);
                             learnNotify[i].Show();
                         }
