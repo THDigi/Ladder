@@ -191,9 +191,11 @@
 				-->
 			</MountPoints>
 			<MirroringZ>Y</MirroringZ>
-			<EdgeType>Light</EdgeType>
+			<ResourceSinkGroup>Doors</ResourceSinkGroup>
 			<PowerConsumptionIdle>0.000000001</PowerConsumptionIdle>
 			<PowerConsumptionMoving>0.001</PowerConsumptionMoving>
+			<DamageEffectId>214</DamageEffectId>
+			<DamagedSound>ParticleElectrical</DamagedSound>
 			<Subparts>
 				<SubpartDefinition>
 					<Name>LadderRetractable_Part1</Name>
@@ -250,8 +252,6 @@
 					<CloseSound>BlockDoorSmallClose</CloseSound>
 				</Opening>
 			</OpeningSequence>
-			<DamageEffectId>214</DamageEffectId>
-			<DamagedSound>ParticleElectrical</DamagedSound>
 		</Definition>
 
 		<Definition xsi:type="MyObjectBuilder_AdvancedDoorDefinition">
@@ -297,9 +297,11 @@
 				-->
 			</MountPoints>
 			<MirroringZ>Y</MirroringZ>
-			<EdgeType>Light</EdgeType>
+			<ResourceSinkGroup>Doors</ResourceSinkGroup>
 			<PowerConsumptionIdle>0.000000001</PowerConsumptionIdle>
 			<PowerConsumptionMoving>0.001</PowerConsumptionMoving>
+			<DamageEffectId>214</DamageEffectId>
+			<DamagedSound>ParticleElectrical</DamagedSound>
 			<Subparts>
 				<SubpartDefinition>
 					<Name>LadderRetractable_Part1</Name>
@@ -356,8 +358,6 @@
 					<CloseSound>BlockDoorSmallClose</CloseSound>
 				</Opening>
 			</OpeningSequence>
-			<DamageEffectId>214</DamageEffectId>
-			<DamagedSound>ParticleElectrical</DamagedSound>
 		</Definition>
 
 	</CubeBlocks>

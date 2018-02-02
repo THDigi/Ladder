@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using Sandbox.Common.ObjectBuilders;
 using Sandbox.Definitions;
@@ -12,7 +11,6 @@ using Sandbox.ModAPI.Interfaces;
 using VRage.Game;
 using VRage.Game.Components;
 using VRage.Game.Entity;
-using VRage.Game.Entity.UseObject;
 using VRage.Game.ModAPI;
 using VRage.Input;
 using VRage.ModAPI;
@@ -21,6 +19,11 @@ using VRage.Utils;
 using VRageMath;
 
 using IMyControllableEntity = Sandbox.Game.Entities.IMyControllableEntity;
+
+// TODO better detection on the side that needs to be mounted on
+// TODO better detection on which ladder to mount when multiple are close (smallship)
+// TODO fix dismounting in air with magnetic boots
+// TODO make it hook the astronaut from the waist onto a rail (http://www.aikencolon.com/assets/images/miller/15729/miller-honeywell-15729-glideloc-component-aluminum-vertical-rail.jpg)
 
 namespace Digi.Ladder
 {
@@ -57,15 +60,15 @@ namespace Digi.Ladder
                     var position = character.WorldMatrix.Translation;
                     var bytes = BitConverter.GetBytes(character.EntityId);
 
-                    MyAPIGateway.Players.GetPlayers(LadderMod.instance.players, delegate (IMyPlayer p)
-                                                    {
-                                                        if(Vector3D.DistanceSquared(p.GetPosition(), position) <= STEP_RANGE_SQ)
-                                                        {
-                                                            MyAPIGateway.Multiplayer.SendMessageTo(PACKET_STEP, bytes, p.SteamUserId, false); // TODO mix this packet into the other packet?
-                                                        }
+                    MyAPIGateway.Players.GetPlayers(null, p =>
+                    {
+                        if(Vector3D.DistanceSquared(p.GetPosition(), position) <= STEP_RANGE_SQ)
+                        {
+                            MyAPIGateway.Multiplayer.SendMessageTo(PACKET_STEP, bytes, p.SteamUserId, false); // TODO mix this packet into the other packet?
+                        }
 
-                                                        return false;
-                                                    });
+                        return false;
+                    });
                 }
             }
         }
@@ -152,10 +155,8 @@ namespace Digi.Ladder
         private Dictionary<ulong, PlayerOnLadder> playersOnLadder = null;
         private readonly List<ulong> removePlayersOnLadder = new List<ulong>();
 
-        private readonly HashSet<IMyEntity> ents = new HashSet<IMyEntity>();
-        public readonly List<IMyPlayer> players = new List<IMyPlayer>();
-
         private readonly StringBuilder tmp = new StringBuilder();
+        private readonly HashSet<IMyEntity> ents = new HashSet<IMyEntity>();
 
         public const float ALIGN_STEP = 0.01f;
         public const float ALIGN_MUL = 1.2f;
@@ -798,6 +799,128 @@ namespace Digi.Ladder
             }
         }
 
+        // DEBUG experimental rotation limit
+        // NOTE: removes the ability to jump off of the ladder directly backwards which is physically possible IRL, so this is not a good thing anyway
+#if false
+        public override void UpdateAfterSimulation()
+        {
+            try
+            {
+                if(!init || isDedicated || usingLadder == null)
+                    return;
+
+                var ladderMatrix = usingLadder.WorldMatrix;
+                var charMatrix = character.WorldMatrix;
+
+                var dotHorizontal = ladderMatrix.Forward.Dot(charMatrix.Forward);
+                var dotLeft = ladderMatrix.Left.Dot(charMatrix.Forward);
+                var dotUp = ladderMatrix.Up.Dot(charMatrix.Up);
+
+                //MyAPIGateway.Utilities.ShowNotification($"dotHorizontal={dotHorizontal:0.00}; dotLeft={dotLeft:0.00}; dotUp={dotUp:0.00}", 16); // DEBUG print
+
+                const double LIMIT_ANGLE = 0.1;
+
+                if(dotHorizontal > -LIMIT_ANGLE)
+                {
+                    // HACK random vector required to apply matrix a 2nd time without moving
+                    var randVec = (ladderMatrix.Up * MyUtils.GetRandomDouble(-0.001, 0.001));
+                    var angle = Math.Acos(LIMIT_ANGLE);
+
+                    if((dotUp > 0 && dotLeft > 0) || (dotUp < 0 && dotLeft < 0))
+                        angle = -angle;
+
+                    var pos = charMatrix.Translation + randVec;
+                    charMatrix = MatrixD.CreateWorld(Vector3D.Zero, ladderMatrix.Backward, charMatrix.Up);
+                    charMatrix *= MatrixD.CreateFromAxisAngle(charMatrix.Up, angle);
+                    charMatrix.Translation = pos;
+
+                    character.WorldMatrix = charMatrix;
+
+                    //MyAPIGateway.Utilities.ShowNotification("set the matrix", 16); // DEBUG print
+                }
+
+                // other experiments
+                {
+                        //if(controllingCharacter)
+                        //{
+                        //    var m = character.WorldMatrix;
+
+                        //    var dotH = ladderMatrix.Forward.Dot(m.Forward);
+                        //    var dotLR = ladderMatrix.Left.Dot(m.Forward);
+
+                        //    MyAPIGateway.Utilities.ShowNotification($"dotH={dotH:0.00}; dotLR={dotLR:0.00}", 16); // DEBUG
+
+                        //    const double LIMIT_ANGLE = 0.5;
+
+                        //    if(dotH > -LIMIT_ANGLE)
+                        //    {
+                        //        // HACK random vector required to apply matrix a 2nd time without moving
+                        //        var randVec = (ladderMatrix.Up * MyUtils.GetRandomDouble(-0.001, 0.001));
+
+                        //        var pos = m.Translation + randVec;
+                        //        m = MatrixD.CreateWorld(Vector3D.Zero, ladderMatrix.Backward, m.Up);
+                        //        m *= MatrixD.CreateFromAxisAngle(m.Up, (dotLR > 0 ? -Math.Acos(LIMIT_ANGLE) : Math.Acos(LIMIT_ANGLE)));
+                        //        m.Translation = pos;
+
+                        //        character.WorldMatrix = m;
+
+                        //        MyAPIGateway.Utilities.ShowNotification("set the matrix", 16); // DEBUG
+                        //    }
+                        //}
+
+                        //if(camCtrl == null || controller == null)
+                        //    return;
+
+                        //if(controller is IMyShipController)
+                        //{
+                        //    // HACK this is how MyCockpit.Rotate() does things so I kinda have to use these magic numbers.
+                        //    var num = MyAPIGateway.Input.GetMouseSensitivity() * 0.13f;
+                        //    camCtrl.Rotate(new Vector2(controller.HeadLocalXAngle / num, controller.HeadLocalYAngle / num), 0);
+                        //}
+                        //else
+                        //{
+                        //    // HACK this is how MyCharacter.RotateHead() does things so I kinda have to use these magic numbers.
+                        //    camCtrl.Rotate(new Vector2(controller.HeadLocalXAngle * 2, controller.HeadLocalYAngle * 2), 0);
+                        //}
+
+                        //character.SetLocalMatrix(Matrix.CreateFromYawPitchRoll(2, 2, -2));
+
+                        //var m = character.WorldMatrix;
+                        //
+                        //var dotH = (float)ladderMatrix.Forward.Dot(m.Forward);
+                        //var ang = (float)ladderMatrix.Forward.Dot(m.Left) * 90;
+                        //MyAPIGateway.Utilities.ShowNotification("dotH=" + Math.Round(dotH, 2) + "; ang = " + Math.Round(ang, 2), 17); // DEBUG
+                        //
+                        //if(dotH > -1)
+                        //{
+                        //    m = MatrixD.CreateFromDir(ladderMatrix.Forward, m.Up);
+                        //    m.Translation = character.WorldMatrix.Translation;
+                        //    character.SetWorldMatrix(m);
+                        //}
+
+                        // only works for vertical
+                        //charCtrl.HeadLocalYAngle = 0;
+                        //charCtrl.HeadLocalXAngle = 0;
+
+                        //MyAPIGateway.Session.CameraController.Rotate(new Vector2(-5f, -5f), 5f); // only works for vertical
+
+                        //charCtrl.MoveAndRotate(Vector3.Zero, new Vector2(0, -5f), 5f); // only works for vertical
+
+                        //character.Physics.AngularVelocity += Vector3.One * 10000000; // does nothing
+
+                        //character.Physics.AddForce(MyPhysicsForceType.ADD_BODY_FORCE_AND_BODY_TORQUE, null, null, Vector3.One * 1000000000000); // doesn't quite work
+
+                        //character.Physics.SetSpeeds(Vector3.Zero, Vector3.One * 10000000); // moves weirdly
+                    }
+
+}
+        catch(Exception e)
+        {
+            Log.Error(e);
+        }
+    }
+#endif
+
         private bool CheckLadder(IMyTerminalBlock l, RayD charRay, Vector3D charPos2)
         {
             if(Vector3D.DistanceSquared(l.WorldMatrix.Translation, charRay.Position) <= UPDATE_RADIUS)
@@ -1316,38 +1439,6 @@ namespace Digi.Ladder
                                 character.Physics.LinearVelocity += vel * len * speed * TICKRATE;
                             }
                         }
-                    }
-
-                    // DEBUG find a way to control view
-                    {
-                        //character.SetLocalMatrix(Matrix.CreateFromYawPitchRoll(2, 2, -2));
-
-                        //var m = character.WorldMatrix;
-                        //
-                        //var dotH = (float)ladderMatrix.Forward.Dot(m.Forward);
-                        //var ang = (float)ladderMatrix.Forward.Dot(m.Left) * 90;
-                        //MyAPIGateway.Utilities.ShowNotification("dotH=" + Math.Round(dotH, 2) + "; ang = " + Math.Round(ang, 2), 17); // DEBUG
-                        //
-                        //if(dotH > -1)
-                        //{
-                        //    m = MatrixD.CreateFromDir(ladderMatrix.Forward, m.Up);
-                        //    m.Translation = character.WorldMatrix.Translation;
-                        //    character.SetWorldMatrix(m);
-                        //}
-
-                        // only works for vertical
-                        //charCtrl.HeadLocalYAngle = 0;
-                        //charCtrl.HeadLocalXAngle = 0;
-
-                        //MyAPIGateway.Session.CameraController.Rotate(new Vector2(-5f, -5f), 5f); // only works for vertical
-
-                        //charCtrl.MoveAndRotate(Vector3.Zero, new Vector2(0, -5f), 5f); // only works for vertical
-
-                        //character.Physics.AngularVelocity += Vector3.One * 10000000; // does nothing
-
-                        //character.Physics.AddForce(MyPhysicsForceType.ADD_BODY_FORCE_AND_BODY_TORQUE, null, null, Vector3.One * 1000000000000); // doesn't quite work
-
-                        //character.Physics.SetSpeeds(Vector3.Zero, Vector3.One * 10000000); // moves weirdly
                     }
 
                     if(Math.Abs(move) > 0.0001f)
