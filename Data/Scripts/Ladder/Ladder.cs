@@ -1614,8 +1614,11 @@ namespace Digi.Ladder
                     return;
 
                 // name needed for highlighting
-                Entity.Name = LadderMod.LADDER_NAME_PREFIX + Entity.EntityId;
-                MyEntities.SetEntityName((MyEntity)Entity, true);
+                if(string.IsNullOrEmpty(Entity.Name))
+                {
+                    Entity.Name = LadderMod.LADDER_NAME_PREFIX + Entity.EntityId;
+                    MyEntities.SetEntityName((MyEntity)Entity, true);
+                }
 
                 if(block.BlockDefinition.TypeId != typeof(MyObjectBuilder_AdvancedDoor))
                 {
