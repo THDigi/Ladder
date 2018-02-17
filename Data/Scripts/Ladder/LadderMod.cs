@@ -1,20 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using Sandbox.Common.ObjectBuilders;
 using Sandbox.Definitions;
 using Sandbox.Game;
 using Sandbox.Game.Entities;
 using Sandbox.Game.Entities.Character.Components;
 using Sandbox.ModAPI;
-using Sandbox.ModAPI.Interfaces;
 using VRage.Game;
 using VRage.Game.Components;
 using VRage.Game.Entity;
 using VRage.Game.ModAPI;
 using VRage.Input;
 using VRage.ModAPI;
-using VRage.ObjectBuilders;
 using VRage.Utils;
 using VRageMath;
 
@@ -33,67 +30,6 @@ namespace Digi.Ladder
         public override void LoadData()
         {
             Log.SetUp("Ladder", 600062079);
-        }
-
-        public class PlayerOnLadder
-        {
-            public IMyEntity character = null;
-            public MyCharacterDefinition characterDefinition = null;
-            public LadderAction action = LadderAction.ON_LADDER;
-            public IMyCubeBlock ladder = null;
-
-            public float climb = 0;
-            public float side = 0;
-            public bool sprint = false;
-            public float progress = 2;
-            public float travel = 0;
-            public int timeout = 0; // TODO implement a check to avoid infinite climbing for people that lost internet connection? TODO actually test if it's necessary
-
-            public void StepSound(int targetTick)
-            {
-                if(!MyAPIGateway.Multiplayer.IsServer)
-                    return;
-
-                if(travel >= targetTick)
-                {
-                    travel = 0;
-                    var position = character.WorldMatrix.Translation;
-                    var bytes = BitConverter.GetBytes(character.EntityId);
-
-                    MyAPIGateway.Players.GetPlayers(null, p =>
-                    {
-                        if(Vector3D.DistanceSquared(p.GetPosition(), position) <= STEP_RANGE_SQ)
-                        {
-                            MyAPIGateway.Multiplayer.SendMessageTo(PACKET_STEP, bytes, p.SteamUserId, false); // TODO mix this packet into the other packet?
-                        }
-
-                        return false;
-                    });
-                }
-            }
-        }
-
-        public enum LadderAction
-        {
-            MOUNT,
-            DISMOUNT,
-            LET_GO,
-            JUMP_OFF,
-            ON_LADDER,
-            CLIMB,
-            CHANGE_LADDER,
-        }
-
-        public enum LadderAnimation
-        {
-            NONE = 0,
-            MOUNTING,
-            IDLE,
-            UP,
-            DOWN,
-            DISMOUNT_LEFT,
-            DISMOUNT_RIGHT,
-            JUMP_OFF,
         }
 
         public static LadderMod instance = null;
@@ -1227,7 +1163,7 @@ namespace Digi.Ladder
                                         {
                                             var slim = ladderGrid.GetCubeBlock(ladderGrid.WorldToGridInteger(ladderMatrix.Translation + ladderMatrix.Up * i * ladderGrid.GridSize));
 
-                                            if(slim?.FatBlock?.GameLogic?.GetAs<LadderLogic>() == null)
+                                            if(slim?.FatBlock?.GameLogic?.GetAs<LadderBlock>() == null)
                                                 break;
 
                                             highlightedLadders.Add(slim.FatBlock.Name);
@@ -1241,7 +1177,7 @@ namespace Digi.Ladder
                                         {
                                             var slim = ladderGrid.GetCubeBlock(ladderGrid.WorldToGridInteger(ladderMatrix.Translation + ladderMatrix.Down * i * ladderGrid.GridSize));
 
-                                            if(slim?.FatBlock?.GameLogic?.GetAs<LadderLogic>() == null)
+                                            if(slim?.FatBlock?.GameLogic?.GetAs<LadderBlock>() == null)
                                                 break;
 
                                             highlightedLadders.Add(slim.FatBlock.Name);
@@ -1669,55 +1605,6 @@ namespace Digi.Ladder
                     MyAPIGateway.Utilities.ShowMessage(Log.modName, "Available commands:");
                     MyAPIGateway.Utilities.ShowMessage("/ladder reload ", "reloads the config file.");
                 }
-            }
-            catch(Exception e)
-            {
-                Log.Error(e);
-            }
-        }
-    }
-
-    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_AdvancedDoor), true, "LargeShipUsableLadderRetractable", "SmallShipUsableLadderRetractable")]
-    public class LadderRetractable : LadderLogic { }
-
-    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_TerminalBlock), true, "LargeShipUsableLadder", "SmallShipUsableLadder", "SmallShipUsableLadderSegment")]
-    public class LadderBlock : LadderLogic { }
-
-    public class LadderLogic : MyGameLogicComponent
-    {
-        public override void Init(MyObjectBuilder_EntityBase objectBuilder)
-        {
-            Entity.NeedsUpdate |= MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
-        }
-
-        public override void Close()
-        {
-            LadderMod.ladders.Remove(Entity.EntityId);
-        }
-
-        public override void UpdateOnceBeforeFrame()
-        {
-            try
-            {
-                var block = Entity as IMyTerminalBlock;
-
-                if(block.CubeGrid.Physics == null)
-                    return;
-
-                // name needed for highlighting
-                if(string.IsNullOrEmpty(Entity.Name))
-                {
-                    Entity.Name = LadderMod.LADDER_NAME_PREFIX + Entity.EntityId;
-                    MyEntities.SetEntityName((MyEntity)Entity, true);
-                }
-
-                if(block.BlockDefinition.TypeId != typeof(MyObjectBuilder_AdvancedDoor))
-                {
-                    block.SetValueBool("ShowInTerminal", false);
-                    block.SetValueBool("ShowInToolbarConfig", false);
-                }
-
-                LadderMod.ladders.Add(Entity.EntityId, block);
             }
             catch(Exception e)
             {
