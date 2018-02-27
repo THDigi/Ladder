@@ -50,7 +50,7 @@ namespace Digi.Ladder
                     block.SetValueBool("ShowInTerminal", false);
                     block.SetValueBool("ShowInToolbarConfig", false);
                 }
-                
+
                 LadderMod.ladders[Entity.EntityId] = block;
             }
             catch(Exception e)
