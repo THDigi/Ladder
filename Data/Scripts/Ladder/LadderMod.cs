@@ -1166,6 +1166,9 @@ namespace Digi.Ladder
                                             if(slim?.FatBlock?.GameLogic?.GetAs<LadderBlock>() == null)
                                                 break;
 
+                                            if(!slim.FatBlock.IsFunctional)
+                                                break;
+
                                             highlightedLadders.Add(slim.FatBlock.Name);
 
                                             float smoothStep = 1 - MathHelper.Clamp((i / (float)scanBlocks), 0f, 0.9f);
@@ -1178,6 +1181,9 @@ namespace Digi.Ladder
                                             var slim = ladderGrid.GetCubeBlock(ladderGrid.WorldToGridInteger(ladderMatrix.Translation + ladderMatrix.Down * i * ladderGrid.GridSize));
 
                                             if(slim?.FatBlock?.GameLogic?.GetAs<LadderBlock>() == null)
+                                                break;
+
+                                            if(!slim.FatBlock.IsFunctional)
                                                 break;
 
                                             highlightedLadders.Add(slim.FatBlock.Name);
