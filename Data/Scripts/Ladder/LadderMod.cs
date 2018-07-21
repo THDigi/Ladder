@@ -689,6 +689,7 @@ namespace Digi.Ladder
                                 }
                         }
 
+                        ld.character.Physics.Gravity = Vector3.Zero; // HACK quick temporary fix until I find why LinearVelocity is ignored in terms of gravity
                         ld.StepSound(60);
                     }
 
