@@ -26,7 +26,7 @@ namespace Digi.Ladder
 
         public override void Close()
         {
-            LadderMod.ladders.Remove(Entity.EntityId);
+            LadderMod.Instance.Ladders.Remove(Entity.EntityId);
         }
 
         public override void UpdateOnceBeforeFrame()
@@ -51,7 +51,7 @@ namespace Digi.Ladder
                     block.SetValueBool("ShowInToolbarConfig", false);
                 }
 
-                LadderMod.ladders[Entity.EntityId] = block;
+                LadderMod.Instance.Ladders[Entity.EntityId] = block;
             }
             catch(Exception e)
             {

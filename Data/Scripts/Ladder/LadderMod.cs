@@ -29,10 +29,11 @@ namespace Digi.Ladder
     {
         public override void LoadData()
         {
+            Instance = this;
             Log.SetUp("Ladder", 600062079);
         }
 
-        public static LadderMod instance = null;
+        public static LadderMod Instance = null;
 
         private bool init = false;
         private bool isServer = false;
@@ -83,7 +84,7 @@ namespace Digi.Ladder
         private readonly Dictionary<long, MyEntity3DSoundEmitter> soundEmitters = new Dictionary<long, MyEntity3DSoundEmitter>();
         private short skipCleanEmitters = 0;
 
-        public static readonly Dictionary<long, IMyTerminalBlock> ladders = new Dictionary<long, IMyTerminalBlock>();
+        public readonly Dictionary<long, IMyTerminalBlock> Ladders = new Dictionary<long, IMyTerminalBlock>();
 
         private IMyHudNotification status = null;
         private readonly PlayerOnLadder myLadderStatus = new PlayerOnLadder();
@@ -143,7 +144,6 @@ namespace Digi.Ladder
 
         public void Init()
         {
-            instance = this;
             init = true;
             isServer = MyAPIGateway.Multiplayer.IsServer;
             isDedicated = isServer && MyAPIGateway.Utilities.IsDedicated;
@@ -283,8 +283,7 @@ namespace Digi.Ladder
         {
             try
             {
-                instance = null;
-                ladders.Clear();
+                Instance = null;
 
                 if(init)
                 {
@@ -1037,7 +1036,7 @@ namespace Digi.Ladder
 
                 if(ladder == null)
                 {
-                    foreach(var l in ladders.Values)
+                    foreach(var l in Ladders.Values)
                     {
                         if(l.Closed || l.MarkedForClose || !l.IsFunctional)
                             continue;
