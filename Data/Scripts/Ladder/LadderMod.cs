@@ -42,7 +42,6 @@ namespace Digi.Ladder
         private IMyCharacter character = null;
         private MyCharacterDefinition characterDefinition = null;
         private IMyTerminalBlock usingLadder = null;
-        private IMyTerminalBlock foundLadder = null;
         private float mounting = 2f;
         private float dismounting = 2;
         private MyOrientedBoundingBoxD ladderBox = new MyOrientedBoundingBoxD();
@@ -167,9 +166,6 @@ namespace Digi.Ladder
                 {
                     grabOnLoad = worldVariables.Contains("grabonload");
                 }
-
-                if(MyAPIGateway.Multiplayer.IsServer)
-                    settings.clientPrediction = false; // lazy fix for the sounds not playing for hosts xD
 
                 MyAPIGateway.Utilities.MessageEntered += MessageEntered;
                 MyAPIGateway.Multiplayer.RegisterMessageHandler(PACKET_STEP, ReceivedStepPacket);
@@ -982,7 +978,7 @@ namespace Digi.Ladder
 
                 var charCtrl = character as IMyControllableEntity;
                 bool controllingCharacter = (playerControlled != null && playerControlled.Entity is IMyCharacter);
-                var ladder = usingLadder ?? foundLadder;
+                var ladder = usingLadder;
 
                 var charmatrix = character.WorldMatrix;
                 var charPos = charmatrix.Translation + charmatrix.Up * 0.05;
@@ -1001,7 +997,7 @@ namespace Digi.Ladder
                     var ladderInternal = (MyCubeBlock)ladder;
                     dismounting *= ALIGN_MUL;
 
-                    if(settings.clientPrediction)
+                    if(settings.ClientPrediction)
                     {
                         var ladderMatrix = ladder.WorldMatrix;
                         var charOnLadder = ladderMatrix.Translation + ladderMatrix.Forward * (ladderInternal.BlockDefinition.ModelOffset.Z + EXTRA_OFFSET_Z);
@@ -1219,7 +1215,7 @@ namespace Digi.Ladder
                         return;
                     }
 
-                    if(settings.clientPrediction)
+                    if(settings.ClientPrediction)
                         character.Physics.LinearVelocity = ladder.CubeGrid.Physics.GetVelocityAtPoint(character.WorldMatrix.Translation); // sync velocity with the ladder
 
                     if(skipRefreshAnim > 0 && --skipRefreshAnim == 0) // force refresh animation after mounting due to an issue
@@ -1233,7 +1229,7 @@ namespace Digi.Ladder
                     {
                         mounting *= ALIGN_MUL;
 
-                        if(settings.clientPrediction)
+                        if(settings.ClientPrediction)
                         {
                             float align = Vector3.Dot(ladderMatrix.Up, character.WorldMatrix.Up);
 
@@ -1328,7 +1324,7 @@ namespace Digi.Ladder
                             return;
                         }
 
-                        if(settings.clientPrediction)
+                        if(settings.ClientPrediction)
                             character.Physics.LinearVelocity += view.Forward * (characterDefinition == null ? VEL_JUMP : 200 * characterDefinition.JumpForce) * TICKRATE;
 
                         SendLadderData(LadderAction.JUMP_OFF, vec: view.Forward);
@@ -1355,7 +1351,7 @@ namespace Digi.Ladder
 
                         float speed = (characterDefinition == null ? (sprint ? VEL_SIDE : VEL_CLIMB) : CHAR_SPEED_MUL * (sprint ? characterDefinition.MaxSprintSpeed : characterDefinition.MaxRunStrafingSpeed));
 
-                        if(settings.clientPrediction)
+                        if(settings.ClientPrediction)
                             character.Physics.LinearVelocity += side * (alignVertical > 0 ? ladderMatrix.Left : ladderMatrix.Right) * speed * TICKRATE;
 
                         LadderAnim(character, (side > 0 ? LadderAnimation.DISMOUNT_LEFT : LadderAnimation.DISMOUNT_RIGHT));
@@ -1368,7 +1364,7 @@ namespace Digi.Ladder
                     {
                         // aligning player to ladder
 
-                        if(settings.clientPrediction)
+                        if(settings.ClientPrediction)
                         {
                             Vector3 dir = charOnLadder - charPos;
                             Vector3 vel = dir - (ladderMatrix.Up * Vector3D.Dot(dir, ladderMatrix.Up)); // projecting up/down direction to ignore it
@@ -1444,7 +1440,7 @@ namespace Digi.Ladder
 
                         float speed = (characterDefinition == null ? (sprint ? VEL_SPRINT : VEL_CLIMB) : CHAR_SPEED_MUL * (sprint ? characterDefinition.MaxSprintSpeed : characterDefinition.MaxRunSpeed));
 
-                        if(settings.clientPrediction)
+                        if(settings.ClientPrediction)
                             character.Physics.LinearVelocity += (alignVertical > 0 ? ladderMatrix.Up : ladderMatrix.Down) * move * speed * TICKRATE;
 
                         if(!movingSideways)
