@@ -45,7 +45,7 @@ namespace Digi.Ladder
                     MyEntities.SetEntityName((MyEntity)Entity, true);
                 }
 
-                if(block.BlockDefinition.TypeId != typeof(MyObjectBuilder_AdvancedDoor))
+                if(MyAPIGateway.Multiplayer.IsServer && block.BlockDefinition.TypeId != typeof(MyObjectBuilder_AdvancedDoor))
                 {
                     block.SetValueBool("ShowInTerminal", false);
                     block.SetValueBool("ShowInToolbarConfig", false);
