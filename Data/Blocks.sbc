@@ -159,7 +159,7 @@
       </Id>
       <BlockPairName>LadderRetractable</BlockPairName>
       <DisplayName>Ladder Retractable</DisplayName>
-      <PCU>15</PCU>
+      <PCU>125</PCU>
       <Icon>Textures\Icons\LadderRetractable.dds</Icon>
       <GuiVisible>false</GuiVisible>
       <CubeSize>Large</CubeSize>
@@ -264,7 +264,7 @@
       </Id>
       <BlockPairName>LadderRetractable</BlockPairName>
       <DisplayName>Ladder Retractable</DisplayName>
-      <PCU>15</PCU>
+      <PCU>125</PCU>
       <Icon>Textures\Icons\LadderRetractable.dds</Icon>
       <GuiVisible>false</GuiVisible>
       <CubeSize>Small</CubeSize>
