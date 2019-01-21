@@ -433,7 +433,8 @@ namespace Digi.Ladder
                                                        BitConverter.ToSingle(bytes, index + sizeof(float) * 2));
                             index += sizeof(float) * 3;
 
-                            ld.character.Physics.LinearVelocity += jumpDir * (ld.characterDefinition == null ? VEL_JUMP : ld.characterDefinition.Mass * ld.characterDefinition.JumpForce) * TICKRATE;
+                            AddEntitySpeed(ld.character, jumpDir * (ld.characterDefinition == null ? VEL_JUMP : ld.characterDefinition.Mass * ld.characterDefinition.JumpForce) * TICKRATE);
+
                             ld.StepSound(0);
 
                             playersOnLadder.Remove(steamId);
@@ -571,7 +572,7 @@ namespace Digi.Ladder
                         }
 
                         // always sync velocity with the ladder
-                        ld.character.Physics.LinearVelocity = kv.Value.ladder.CubeGrid.Physics.GetVelocityAtPoint(ld.character.WorldMatrix.Translation);
+                        var linearVelocity = kv.Value.ladder.CubeGrid.Physics.GetVelocityAtPoint(ld.character.WorldMatrix.Translation);
 
                         switch(kv.Value.action)
                         {
@@ -583,7 +584,7 @@ namespace Digi.Ladder
                                     {
                                         float speed = (ld.characterDefinition == null ? (ld.sprint ? VEL_SPRINT : VEL_CLIMB) : CHAR_SPEED_MUL * (ld.sprint ? ld.characterDefinition.MaxSprintSpeed : ld.characterDefinition.MaxRunSpeed));
 
-                                        ld.character.Physics.LinearVelocity += ladderMatrix.Up * ld.climb * speed * TICKRATE;
+                                        linearVelocity += ladderMatrix.Up * ld.climb * speed * TICKRATE;
                                         ld.travel += Math.Abs(ld.climb) * speed * TICKRATE;
                                     }
 
@@ -591,7 +592,7 @@ namespace Digi.Ladder
 
                                     if(Math.Abs(ld.side) > 0.0001f) // moving sideways
                                     {
-                                        ld.character.Physics.LinearVelocity += ladderMatrix.Left * ld.side * speedSide * TICKRATE;
+                                        linearVelocity += ladderMatrix.Left * ld.side * speedSide * TICKRATE;
                                         ld.travel += Math.Abs(ld.side) * speedSide * TICKRATE;
                                     }
                                     else // move player back on to the ladder sideways
@@ -610,7 +611,7 @@ namespace Digi.Ladder
                                         if(len >= ALIGN_ACCURACY)
                                         {
                                             len = MathHelper.Clamp(len, 0.1f, 1);
-                                            ld.character.Physics.LinearVelocity += vel * len * speedSide * TICKRATE;
+                                            linearVelocity += vel * len * speedSide * TICKRATE;
                                             ld.travel += len * speedSide * TICKRATE;
                                         }
                                     }
@@ -687,6 +688,8 @@ namespace Digi.Ladder
                                     break;
                                 }
                         }
+
+                        SetEntitySpeed(ld.character, linearVelocity);
 
                         // HACK quick temporary fix until I find why LinearVelocity is ignored in terms of gravity
                         ld.character.Physics.Gravity = Vector3.Zero;
@@ -1013,7 +1016,7 @@ namespace Digi.Ladder
 
                         character.SetWorldMatrix(MatrixD.SlerpScale(character.WorldMatrix, matrix, MathHelper.Clamp(dismounting, 0.0f, 1.0f)));
 
-                        character.Physics.LinearVelocity = ladder.CubeGrid.Physics.GetVelocityAtPoint(character.WorldMatrix.Translation); // sync velocity with the ladder
+                        SetEntitySpeed(character, ladder.CubeGrid.Physics.GetVelocityAtPoint(character.WorldMatrix.Translation)); // sync velocity with the ladder
                     }
 
                     //SetLadderStatus("Dismounting ladder...", MyFontEnum.White);
@@ -1217,7 +1220,7 @@ namespace Digi.Ladder
                     }
 
                     if(settings.ClientPrediction)
-                        character.Physics.LinearVelocity = ladder.CubeGrid.Physics.GetVelocityAtPoint(character.WorldMatrix.Translation); // sync velocity with the ladder
+                        SetEntitySpeed(character, ladder.CubeGrid.Physics.GetVelocityAtPoint(character.WorldMatrix.Translation)); // sync velocity with the ladder
 
                     if(skipRefreshAnim > 0 && --skipRefreshAnim == 0) // force refresh animation after mounting due to an issue
                     {
@@ -1326,7 +1329,7 @@ namespace Digi.Ladder
                         }
 
                         if(settings.ClientPrediction)
-                            character.Physics.LinearVelocity += view.Forward * (characterDefinition == null ? VEL_JUMP : 200 * characterDefinition.JumpForce) * TICKRATE;
+                            AddEntitySpeed(character, view.Forward * (characterDefinition == null ? VEL_JUMP : 200 * characterDefinition.JumpForce) * TICKRATE);
 
                         SendLadderData(LadderAction.JUMP_OFF, vec: view.Forward);
                         LadderAnim(character, LadderAnimation.JUMP_OFF);
@@ -1353,7 +1356,7 @@ namespace Digi.Ladder
                         float speed = (characterDefinition == null ? (sprint ? VEL_SIDE : VEL_CLIMB) : CHAR_SPEED_MUL * (sprint ? characterDefinition.MaxSprintSpeed : characterDefinition.MaxRunStrafingSpeed));
 
                         if(settings.ClientPrediction)
-                            character.Physics.LinearVelocity += side * (alignVertical > 0 ? ladderMatrix.Left : ladderMatrix.Right) * speed * TICKRATE;
+                            AddEntitySpeed(character, side * (alignVertical > 0 ? ladderMatrix.Left : ladderMatrix.Right) * speed * TICKRATE);
 
                         LadderAnim(character, (side > 0 ? LadderAnimation.DISMOUNT_LEFT : LadderAnimation.DISMOUNT_RIGHT));
                         movingSideways = true;
@@ -1375,7 +1378,7 @@ namespace Digi.Ladder
                             {
                                 float speed = (characterDefinition == null ? (sprint ? VEL_SIDE : VEL_CLIMB) : CHAR_SPEED_MUL * (sprint ? characterDefinition.MaxRunStrafingSpeed : characterDefinition.MaxWalkStrafingSpeed));
                                 len = MathHelper.Clamp(len, 0.1f, 1);
-                                character.Physics.LinearVelocity += vel * len * speed * TICKRATE;
+                                AddEntitySpeed(character, vel * len * speed * TICKRATE);
                             }
                         }
                     }
@@ -1442,7 +1445,7 @@ namespace Digi.Ladder
                         float speed = (characterDefinition == null ? (sprint ? VEL_SPRINT : VEL_CLIMB) : CHAR_SPEED_MUL * (sprint ? characterDefinition.MaxSprintSpeed : characterDefinition.MaxRunSpeed));
 
                         if(settings.ClientPrediction)
-                            character.Physics.LinearVelocity += (alignVertical > 0 ? ladderMatrix.Up : ladderMatrix.Down) * move * speed * TICKRATE;
+                            AddEntitySpeed(character, (alignVertical > 0 ? ladderMatrix.Up : ladderMatrix.Down) * move * speed * TICKRATE);
 
                         if(!movingSideways)
                             LadderAnim(character, (move > 0 ? LadderAnimation.UP : LadderAnimation.DOWN));
@@ -1583,6 +1586,16 @@ namespace Digi.Ladder
                     BlendTime = 0.1f,
                 }, true);
             }
+        }
+
+        private static void SetEntitySpeed(IMyEntity ent, Vector3 linearVelocity)
+        {
+            ent.Physics.SetSpeeds(linearVelocity, Vector3.Zero);
+        }
+
+        private static void AddEntitySpeed(IMyEntity ent, Vector3 linearVelocity)
+        {
+            ent.Physics.SetSpeeds(ent.Physics.LinearVelocity + linearVelocity, Vector3.Zero);
         }
 
         public void MessageEntered(string msg, ref bool send)
