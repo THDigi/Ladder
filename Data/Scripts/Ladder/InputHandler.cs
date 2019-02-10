@@ -75,7 +75,7 @@ namespace Digi
                     combined.Add(InputHandler.inputNames[o]);
                 }
             }
-            
+
             if(checkGamepadUsed && gamepadInputs > 0 && otherInputs == 0 && !MyAPIGateway.Input.IsJoystickLastUsed)
                 return null; // only gamepad inputs in the combination but no gamepad connecte, return null.
 
@@ -341,7 +341,6 @@ namespace Digi
                 {CONTROL_PREFIX+"lookaround", MyControlsSpace.LOOKAROUND},
                 {CONTROL_PREFIX+"cameramode", MyControlsSpace.CAMERA_MODE},
                 {CONTROL_PREFIX+"buildmenu", MyControlsSpace.BUILD_SCREEN},
-                {CONTROL_PREFIX+"cockpitbuild", MyControlsSpace.COCKPIT_BUILD_MODE},
                 {CONTROL_PREFIX+"paint", MyControlsSpace.CUBE_COLOR_CHANGE},
                 {CONTROL_PREFIX+"switchleft", MyControlsSpace.SWITCH_LEFT}, // previous color or cam
                 {CONTROL_PREFIX+"switchright", MyControlsSpace.SWITCH_RIGHT}, // next color or cam
