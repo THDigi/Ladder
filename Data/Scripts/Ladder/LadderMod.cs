@@ -114,8 +114,8 @@ namespace Digi.Ladder
 
         public const string LADDER_NAME_PREFIX = "Ladder-";
 
-        public const string LEARN_UNCHECK = "[  ] ";
-        public const string LEARN_CHECK = "[x] ";
+        public const string LEARN_UNCHECK = "(x) ";
+        public const string LEARN_CHECK = "( ) ";
         public readonly MyStringId CUSTOMTEXT = MyStringId.GetOrCompute("{0}");
 
         private LadderAnimation lastLadderAnim = LadderAnimation.NONE;
