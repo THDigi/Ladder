@@ -182,7 +182,7 @@ namespace Digi.Ladder
                         {
                             line = line.Trim();
 
-                            if(line.StartsWith("//", StringComparison.Ordinal))
+                            if(line.StartsWith("//"))
                                 continue;
 
                             switch(line)
@@ -1198,7 +1198,7 @@ namespace Digi.Ladder
                                         }
                                     }
 
-                                    SetLadderStatus("Press " + InputHandler.GetFriendlyStringOr(settings.useLadder1, settings.useLadder2) + " to use the ladder.", MyFontEnum.White);
+                                    SetLadderStatus($"Press {InputHandler.GetFriendlyStringOr(settings.useLadder1, settings.useLadder2)} to use the ladder.", MyFontEnum.White);
                                     return;
                                 }
                             }
@@ -1295,13 +1295,15 @@ namespace Digi.Ladder
 
                         for(int i = 0; i < learned.Length; i++)
                         {
-                            if(learnNotify[i] == null)
-                                learnNotify[i] = MyAPIGateway.Utilities.CreateNotification("");
+                            var learn = learnNotify[i];
 
-                            learnNotify[i].Text = (learned[i] ? LEARN_CHECK : LEARN_UNCHECK) + learnText[i];
-                            learnNotify[i].Font = (learned[i] ? MyFontEnum.DarkBlue : MyFontEnum.White);
-                            learnNotify[i].AliveTime = (allLearned ? 1000 : 100);
-                            learnNotify[i].Show();
+                            if(learn == null)
+                                learn = learnNotify[i] = MyAPIGateway.Utilities.CreateNotification("");
+
+                            learn.Text = (learned[i] ? LEARN_CHECK : LEARN_UNCHECK) + learnText[i];
+                            learn.Font = (learned[i] ? MyFontEnum.DarkBlue : MyFontEnum.White);
+                            learn.AliveTime = (allLearned ? 1000 : 100);
+                            learn.Show();
                         }
 
                         if(allLearned)

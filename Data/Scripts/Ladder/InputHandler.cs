@@ -776,7 +776,7 @@ namespace Digi
                 var primary = input1.GetFriendlyString(true, true);
 
                 if(!string.IsNullOrWhiteSpace(primary))
-                    tmp.Append(primary.ToUpper());
+                    tmp.Append('[').Append(primary.ToUpper()).Append(']');
             }
 
             if(input2 != null)
@@ -788,7 +788,7 @@ namespace Digi
                     if(tmp.Length > 0)
                         tmp.Append(" or ");
 
-                    tmp.Append(secondary.ToUpper());
+                    tmp.Append('[').Append(secondary.ToUpper()).Append(']');
                 }
             }
 
