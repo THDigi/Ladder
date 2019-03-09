@@ -681,6 +681,7 @@ namespace Digi.Ladder
 
                                     if(ld.progress > 1)
                                     {
+                                        SetEntitySpeed(ld.character, ld.character.WorldMatrix.Down * 3); // dismount downward velocity to touch floor
                                         removePlayersOnLadder.Add(kv.Key);
                                         continue;
                                     }
@@ -1022,7 +1023,10 @@ namespace Digi.Ladder
                     //SetLadderStatus("Dismounting ladder...", MyFontEnum.White);
 
                     if(dismounting > 1f)
+                    {
+                        SetEntitySpeed(character, character.WorldMatrix.Down * 3); // 3m/s downward speed to touch the ground
                         ExitLadder(false);
+                    }
 
                     return;
                 }
