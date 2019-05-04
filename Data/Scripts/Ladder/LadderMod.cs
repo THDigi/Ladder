@@ -30,7 +30,8 @@ namespace Digi.Ladder
         public override void LoadData()
         {
             Instance = this;
-            Log.SetUp("Ladder", 600062079);
+            Log.ModName = "Ladder";
+            Log.AutoClose = false;
         }
 
         public static LadderMod Instance = null;
@@ -147,8 +148,6 @@ namespace Digi.Ladder
             init = true;
             isServer = MyAPIGateway.Multiplayer.IsServer;
             isDedicated = isServer && MyAPIGateway.Utilities.IsDedicated;
-
-            Log.Init();
 
             if(MyAPIGateway.Multiplayer.IsServer)
             {
@@ -1616,15 +1615,15 @@ namespace Digi.Ladder
                     if(msg.Equals("reload"))
                     {
                         if(settings.Load())
-                            MyAPIGateway.Utilities.ShowMessage(Log.modName, "Reloaded and re-saved config.");
+                            MyAPIGateway.Utilities.ShowMessage(Log.ModName, "Reloaded and re-saved config.");
                         else
-                            MyAPIGateway.Utilities.ShowMessage(Log.modName, "Config created with the current settings.");
+                            MyAPIGateway.Utilities.ShowMessage(Log.ModName, "Config created with the current settings.");
 
                         settings.Save();
                         return;
                     }
 
-                    MyAPIGateway.Utilities.ShowMessage(Log.modName, "Available commands:");
+                    MyAPIGateway.Utilities.ShowMessage(Log.ModName, "Available commands:");
                     MyAPIGateway.Utilities.ShowMessage("/ladder reload ", "reloads the config file.");
                 }
             }
