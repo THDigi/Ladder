@@ -485,6 +485,7 @@ namespace Digi.Ladder
             }
             else
             {
+                status.Hide(); // required since SE v1.194
                 status.Font = font;
                 status.Text = text;
                 status.AliveTime = aliveTime;
@@ -1301,6 +1302,7 @@ namespace Digi.Ladder
                             if(learn == null)
                                 learn = learnNotify[i] = MyAPIGateway.Utilities.CreateNotification("");
 
+                            learn.Hide(); // required since SE v1.194
                             learn.Text = (learned[i] ? LEARN_CHECK : LEARN_UNCHECK) + learnText[i];
                             learn.Font = (learned[i] ? MyFontEnum.DarkBlue : MyFontEnum.White);
                             learn.AliveTime = (allLearned ? 1000 : 100);
