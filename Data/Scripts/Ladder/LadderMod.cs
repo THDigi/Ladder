@@ -1072,7 +1072,9 @@ namespace Digi.Ladder
                     {
                         skipRetryGravity = 0;
                         alignedToGravity = true;
-                        var gravity = MyParticlesManager.CalculateGravityInPoint(character.WorldMatrix.Translation);
+
+                        float naturalGravityMultiplier;
+                        var gravity = MyAPIGateway.Physics.CalculateNaturalGravityAt(character.WorldMatrix.Translation, out naturalGravityMultiplier);
                         var gravityLength = gravity.Normalize();
 
                         if(gravityLength > 0)
