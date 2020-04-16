@@ -1074,8 +1074,10 @@ namespace Digi.Ladder
                         skipRetryGravity = 0;
                         alignedToGravity = true;
 
+                        // NOTE: must be natural and artificial gravity because both auto-orient player and it's an issue.
                         float naturalGravityMultiplier;
-                        var gravity = MyAPIGateway.Physics.CalculateNaturalGravityAt(character.WorldMatrix.Translation, out naturalGravityMultiplier);
+                        var gravity = MyAPIGateway.Physics.CalculateNaturalGravityAt(charOnLadder, out naturalGravityMultiplier)
+                                    + MyAPIGateway.Physics.CalculateArtificialGravityAt(charOnLadder, naturalGravityMultiplier);
                         var gravityLength = gravity.Normalize();
 
                         if(gravityLength > 0)
