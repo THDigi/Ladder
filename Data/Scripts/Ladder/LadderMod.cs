@@ -710,29 +710,39 @@ namespace Digi.Ladder
 
                 if(!isDedicated)
                 {
-                    aimingAtLadder = false;
-
-                    PlayerUpdate();
-
-                    if(!aimingAtLadder && highlightedLadderCenter != null)
-                    {
-                        highlightedLadderCenter = null;
-
-                        if(highlightedLadders.Count > 0)
-                        {
-                            foreach(var name in highlightedLadders)
-                            {
-                                MyVisualScriptLogicProvider.SetHighlight(name, false);
-                            }
-
-                            highlightedLadders.Clear();
-                        }
-                    }
+                    UpdateHighlights();
                 }
             }
             catch(Exception e)
             {
                 Log.Error(e);
+            }
+        }
+
+        private void UpdateHighlights()
+        {
+            aimingAtLadder = false;
+
+            PlayerUpdate();
+
+            if(!aimingAtLadder && highlightedLadderCenter != null)
+            {
+                if(MyAPIGateway.Session?.Player == null)
+                    throw new Exception("MyAPIGateway.Session?.Player is null");
+
+                var identityId = MyAPIGateway.Session.Player.IdentityId;
+
+                highlightedLadderCenter = null;
+
+                if(highlightedLadders.Count > 0)
+                {
+                    foreach(var name in highlightedLadders)
+                    {
+                        MyVisualScriptLogicProvider.SetHighlight(name, false, playerId: identityId);
+                    }
+
+                    highlightedLadders.Clear();
+                }
             }
         }
 
@@ -1151,7 +1161,7 @@ namespace Digi.Ladder
                                         {
                                             foreach(var name in highlightedLadders)
                                             {
-                                                MyVisualScriptLogicProvider.SetHighlight(name, false);
+                                                MyVisualScriptLogicProvider.SetHighlight(name, false, playerId: MyAPIGateway.Session.Player.IdentityId);
                                             }
 
                                             highlightedLadders.Clear();
@@ -1162,7 +1172,7 @@ namespace Digi.Ladder
                                         var thick = (int)envDef.ContourHighlightThickness;
 
                                         highlightedLadders.Add(ladder.Name);
-                                        MyVisualScriptLogicProvider.SetHighlight(ladder.Name, true, thick, LADDER_HIGHLIGHT_PULSE, color);
+                                        MyVisualScriptLogicProvider.SetHighlight(ladder.Name, true, thick, LADDER_HIGHLIGHT_PULSE, color, playerId: MyAPIGateway.Session.Player.IdentityId);
 
                                         var ladderGrid = ladder.CubeGrid;
                                         const int scanBlocks = 3;
@@ -1181,7 +1191,7 @@ namespace Digi.Ladder
 
                                             float smoothStep = 1 - MathHelper.Clamp((i / (float)scanBlocks), 0f, 0.9f);
                                             var thickness = Math.Max((int)(thick * smoothStep), 1);
-                                            MyVisualScriptLogicProvider.SetHighlight(slim.FatBlock.Name, true, thickness, LADDER_HIGHLIGHT_PULSE, (color * smoothStep));
+                                            MyVisualScriptLogicProvider.SetHighlight(slim.FatBlock.Name, true, thickness, LADDER_HIGHLIGHT_PULSE, (color * smoothStep), playerId: MyAPIGateway.Session.Player.IdentityId);
                                         }
 
                                         for(int i = 1; i <= scanBlocks; i++)
@@ -1198,7 +1208,7 @@ namespace Digi.Ladder
 
                                             float smoothStep = 1 - MathHelper.Clamp((i / (float)scanBlocks), 0f, 0.9f);
                                             var thickness = Math.Max((int)(thick * smoothStep), 1);
-                                            MyVisualScriptLogicProvider.SetHighlight(slim.FatBlock.Name, true, thickness, LADDER_HIGHLIGHT_PULSE, (color * smoothStep));
+                                            MyVisualScriptLogicProvider.SetHighlight(slim.FatBlock.Name, true, thickness, LADDER_HIGHLIGHT_PULSE, (color * smoothStep), playerId: MyAPIGateway.Session.Player.IdentityId);
                                         }
                                     }
 
