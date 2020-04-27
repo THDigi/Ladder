@@ -400,61 +400,12 @@ namespace Digi.Ladder
                 {
                     case LadderAction.MOUNT:
                     case LadderAction.DISMOUNT:
-                        {
-                            ld.action = action;
-                            ld.progress = ALIGN_STEP;
-                            ld.travel = 0;
+                    {
+                        ld.action = action;
+                        ld.progress = ALIGN_STEP;
+                        ld.travel = 0;
 
-                            if(action == LadderAction.MOUNT)
-                            {
-                                long ladderId = BitConverter.ToInt64(bytes, index);
-                                index += sizeof(long);
-
-                                ld.ladder = (MyAPIGateway.Entities.EntityExists(ladderId) ? MyAPIGateway.Entities.GetEntityById(ladderId) as IMyCubeBlock : null);
-
-                                if(ld.ladder == null)
-                                    playersOnLadder.Remove(steamId);
-                            }
-
-                            return;
-                        }
-                    case LadderAction.LET_GO:
-                        {
-                            ld.StepSound(0);
-
-                            playersOnLadder.Remove(steamId);
-                            return;
-                        }
-                    case LadderAction.JUMP_OFF:
-                        {
-                            var jumpDir = new Vector3(BitConverter.ToSingle(bytes, index),
-                                                       BitConverter.ToSingle(bytes, index + sizeof(float)),
-                                                       BitConverter.ToSingle(bytes, index + sizeof(float) * 2));
-                            index += sizeof(float) * 3;
-
-                            AddEntitySpeed(ld.character, jumpDir * (ld.characterDefinition == null ? VEL_JUMP : ld.characterDefinition.Mass * ld.characterDefinition.JumpForce) * TICKRATE);
-
-                            ld.StepSound(0);
-
-                            playersOnLadder.Remove(steamId);
-                            return;
-                        }
-                    case LadderAction.CLIMB:
-                        {
-                            // don't set the action, it'll run in ON_LADDER
-
-                            ld.climb = BitConverter.ToSingle(bytes, index);
-                            index += sizeof(float);
-
-                            ld.side = BitConverter.ToSingle(bytes, index);
-                            index += sizeof(float);
-
-                            ld.sprint = BitConverter.ToBoolean(bytes, index);
-                            index += sizeof(bool);
-
-                            return;
-                        }
-                    case LadderAction.CHANGE_LADDER:
+                        if(action == LadderAction.MOUNT)
                         {
                             long ladderId = BitConverter.ToInt64(bytes, index);
                             index += sizeof(long);
@@ -462,13 +413,62 @@ namespace Digi.Ladder
                             ld.ladder = (MyAPIGateway.Entities.EntityExists(ladderId) ? MyAPIGateway.Entities.GetEntityById(ladderId) as IMyCubeBlock : null);
 
                             if(ld.ladder == null)
-                            {
                                 playersOnLadder.Remove(steamId);
-                                return;
-                            }
+                        }
 
+                        return;
+                    }
+                    case LadderAction.LET_GO:
+                    {
+                        ld.StepSound(0);
+
+                        playersOnLadder.Remove(steamId);
+                        return;
+                    }
+                    case LadderAction.JUMP_OFF:
+                    {
+                        var jumpDir = new Vector3(BitConverter.ToSingle(bytes, index),
+                                                   BitConverter.ToSingle(bytes, index + sizeof(float)),
+                                                   BitConverter.ToSingle(bytes, index + sizeof(float) * 2));
+                        index += sizeof(float) * 3;
+
+                        AddEntitySpeed(ld.character, jumpDir * (ld.characterDefinition == null ? VEL_JUMP : ld.characterDefinition.Mass * ld.characterDefinition.JumpForce) * TICKRATE);
+
+                        ld.StepSound(0);
+
+                        playersOnLadder.Remove(steamId);
+                        return;
+                    }
+                    case LadderAction.CLIMB:
+                    {
+                        // don't set the action, it'll run in ON_LADDER
+
+                        ld.climb = BitConverter.ToSingle(bytes, index);
+                        index += sizeof(float);
+
+                        ld.side = BitConverter.ToSingle(bytes, index);
+                        index += sizeof(float);
+
+                        ld.sprint = BitConverter.ToBoolean(bytes, index);
+                        index += sizeof(bool);
+
+                        return;
+                    }
+                    case LadderAction.CHANGE_LADDER:
+                    {
+                        long ladderId = BitConverter.ToInt64(bytes, index);
+                        index += sizeof(long);
+
+                        ld.ladder = (MyAPIGateway.Entities.EntityExists(ladderId) ? MyAPIGateway.Entities.GetEntityById(ladderId) as IMyCubeBlock : null);
+
+                        if(ld.ladder == null)
+                        {
+                            playersOnLadder.Remove(steamId);
                             return;
                         }
+
+                        return;
+                    }
                 }
             }
             catch(Exception e)
@@ -577,117 +577,117 @@ namespace Digi.Ladder
                         switch(kv.Value.action)
                         {
                             case LadderAction.ON_LADDER:
+                            {
+                                var ladderMatrix = ld.ladder.WorldMatrix;
+
+                                if(Math.Abs(ld.climb) > 0.0001f) // climbing up/down
                                 {
-                                    var ladderMatrix = ld.ladder.WorldMatrix;
+                                    float speed = (ld.characterDefinition == null ? (ld.sprint ? VEL_SPRINT : VEL_CLIMB) : CHAR_SPEED_MUL * (ld.sprint ? ld.characterDefinition.MaxSprintSpeed : ld.characterDefinition.MaxRunSpeed));
 
-                                    if(Math.Abs(ld.climb) > 0.0001f) // climbing up/down
-                                    {
-                                        float speed = (ld.characterDefinition == null ? (ld.sprint ? VEL_SPRINT : VEL_CLIMB) : CHAR_SPEED_MUL * (ld.sprint ? ld.characterDefinition.MaxSprintSpeed : ld.characterDefinition.MaxRunSpeed));
-
-                                        linearVelocity += ladderMatrix.Up * ld.climb * speed * TICKRATE;
-                                        ld.travel += Math.Abs(ld.climb) * speed * TICKRATE;
-                                    }
-
-                                    float speedSide = (ld.characterDefinition == null ? (ld.sprint ? VEL_SIDE : VEL_CLIMB) : CHAR_SPEED_MUL * (ld.sprint ? ld.characterDefinition.MaxSprintSpeed : ld.characterDefinition.MaxRunStrafingSpeed));
-
-                                    if(Math.Abs(ld.side) > 0.0001f) // moving sideways
-                                    {
-                                        linearVelocity += ladderMatrix.Left * ld.side * speedSide * TICKRATE;
-                                        ld.travel += Math.Abs(ld.side) * speedSide * TICKRATE;
-                                    }
-                                    else // move player back on to the ladder sideways
-                                    {
-                                        var ladderInternal = ld.ladder as MyCubeBlock;
-                                        var charOnLadder = ladderMatrix.Translation + ladderMatrix.Forward * (ladderInternal.BlockDefinition.ModelOffset.Z + EXTRA_OFFSET_Z);
-
-                                        if(ld.ladder.CubeGrid.GridSizeEnum == MyCubeSize.Large)
-                                            charOnLadder += ladderMatrix.Backward;
-
-                                        var charPos = ld.character.WorldMatrix.Translation + ld.character.WorldMatrix.Up * 0.05;
-                                        Vector3 dir = charOnLadder - charPos;
-                                        Vector3 vel = dir - (ladderMatrix.Up * Vector3D.Dot(dir, ladderMatrix.Up));
-                                        float len = vel.Normalize();
-
-                                        if(len >= ALIGN_ACCURACY)
-                                        {
-                                            len = MathHelper.Clamp(len, 0.1f, 1);
-                                            linearVelocity += vel * len * speedSide * TICKRATE;
-                                            ld.travel += len * speedSide * TICKRATE;
-                                        }
-                                    }
-
-                                    ld.StepSound(60);
-                                    break;
+                                    linearVelocity += ladderMatrix.Up * ld.climb * speed * TICKRATE;
+                                    ld.travel += Math.Abs(ld.climb) * speed * TICKRATE;
                                 }
+
+                                float speedSide = (ld.characterDefinition == null ? (ld.sprint ? VEL_SIDE : VEL_CLIMB) : CHAR_SPEED_MUL * (ld.sprint ? ld.characterDefinition.MaxSprintSpeed : ld.characterDefinition.MaxRunStrafingSpeed));
+
+                                if(Math.Abs(ld.side) > 0.0001f) // moving sideways
+                                {
+                                    linearVelocity += ladderMatrix.Left * ld.side * speedSide * TICKRATE;
+                                    ld.travel += Math.Abs(ld.side) * speedSide * TICKRATE;
+                                }
+                                else // move player back on to the ladder sideways
+                                {
+                                    var ladderInternal = ld.ladder as MyCubeBlock;
+                                    var charOnLadder = ladderMatrix.Translation + ladderMatrix.Forward * (ladderInternal.BlockDefinition.ModelOffset.Z + EXTRA_OFFSET_Z);
+
+                                    if(ld.ladder.CubeGrid.GridSizeEnum == MyCubeSize.Large)
+                                        charOnLadder += ladderMatrix.Backward;
+
+                                    var charPos = ld.character.WorldMatrix.Translation + ld.character.WorldMatrix.Up * 0.05;
+                                    Vector3 dir = charOnLadder - charPos;
+                                    Vector3 vel = dir - (ladderMatrix.Up * Vector3D.Dot(dir, ladderMatrix.Up));
+                                    float len = vel.Normalize();
+
+                                    if(len >= ALIGN_ACCURACY)
+                                    {
+                                        len = MathHelper.Clamp(len, 0.1f, 1);
+                                        linearVelocity += vel * len * speedSide * TICKRATE;
+                                        ld.travel += len * speedSide * TICKRATE;
+                                    }
+                                }
+
+                                ld.StepSound(60);
+                                break;
+                            }
                             case LadderAction.MOUNT:
-                                {
-                                    ld.progress *= ALIGN_MUL;
+                            {
+                                ld.progress *= ALIGN_MUL;
 
-                                    var ladderMatrix = ld.ladder.WorldMatrix;
-                                    var ladderInternal = ld.ladder as MyCubeBlock;
-                                    var charOnLadder = ladderMatrix.Translation + ladderMatrix.Forward * (ladderInternal.BlockDefinition.ModelOffset.Z + EXTRA_OFFSET_Z);
+                                var ladderMatrix = ld.ladder.WorldMatrix;
+                                var ladderInternal = ld.ladder as MyCubeBlock;
+                                var charOnLadder = ladderMatrix.Translation + ladderMatrix.Forward * (ladderInternal.BlockDefinition.ModelOffset.Z + EXTRA_OFFSET_Z);
 
-                                    if(ld.ladder.CubeGrid.GridSizeEnum == MyCubeSize.Large)
-                                        charOnLadder += ladderMatrix.Backward;
+                                if(ld.ladder.CubeGrid.GridSizeEnum == MyCubeSize.Large)
+                                    charOnLadder += ladderMatrix.Backward;
 
-                                    float align = Vector3.Dot(ladderMatrix.Up, ld.character.WorldMatrix.Up);
+                                float align = Vector3.Dot(ladderMatrix.Up, ld.character.WorldMatrix.Up);
 
-                                    var matrix = MatrixD.CreateFromDir(ladderMatrix.Backward, (align >= 0.1f ? ladderMatrix.Up : ladderMatrix.Down));
-                                    var halfY = ((ladderInternal.BlockDefinition.Size.Y * ld.ladder.CubeGrid.GridSize) / 2);
-                                    var diff = Vector3D.Dot(ld.character.WorldMatrix.Translation, ladderMatrix.Up) - Vector3D.Dot(charOnLadder, ladderMatrix.Up);
-                                    matrix.Translation = charOnLadder + ladderMatrix.Up * MathHelper.Clamp(diff, -halfY, halfY);
+                                var matrix = MatrixD.CreateFromDir(ladderMatrix.Backward, (align >= 0.1f ? ladderMatrix.Up : ladderMatrix.Down));
+                                var halfY = ((ladderInternal.BlockDefinition.Size.Y * ld.ladder.CubeGrid.GridSize) / 2);
+                                var diff = Vector3D.Dot(ld.character.WorldMatrix.Translation, ladderMatrix.Up) - Vector3D.Dot(charOnLadder, ladderMatrix.Up);
+                                matrix.Translation = charOnLadder + ladderMatrix.Up * MathHelper.Clamp(diff, -halfY, halfY);
 
-                                    // UNDONE DEBUG
-                                    //{
-                                    //    MyTransparentGeometry.AddPointBillboard("Square", Color.Red, charOnLadder, 0.1f, 0, 0, true);
-                                    //    MyTransparentGeometry.AddPointBillboard("Square", Color.Yellow, ld.character.WorldMatrix.Translation, 0.1f, 0, 0, true);
-                                    //    MyTransparentGeometry.AddPointBillboard("Square", Color.Green, matrix.Translation, 0.1f, 0, 0, true);
-                                    //}
+                                // UNDONE DEBUG
+                                //{
+                                //    MyTransparentGeometry.AddPointBillboard("Square", Color.Red, charOnLadder, 0.1f, 0, 0, true);
+                                //    MyTransparentGeometry.AddPointBillboard("Square", Color.Yellow, ld.character.WorldMatrix.Translation, 0.1f, 0, 0, true);
+                                //    MyTransparentGeometry.AddPointBillboard("Square", Color.Green, matrix.Translation, 0.1f, 0, 0, true);
+                                //}
 
-                                    ld.character.SetWorldMatrix(MatrixD.SlerpScale(ld.character.WorldMatrix, matrix, MathHelper.Clamp(ld.progress, 0.0f, 1.0f)));
+                                ld.character.SetWorldMatrix(MatrixD.SlerpScale(ld.character.WorldMatrix, matrix, MathHelper.Clamp(ld.progress, 0.0f, 1.0f)));
 
-                                    //if(mounting >= 0.75f && charCtrl.EnabledThrusts) // apparently not needed to be synchronized, left here in case it is in the future
-                                    //    charCtrl.SwitchThrusts();
+                                //if(mounting >= 0.75f && charCtrl.EnabledThrusts) // apparently not needed to be synchronized, left here in case it is in the future
+                                //    charCtrl.SwitchThrusts();
 
-                                    ld.travel += 3f;
-                                    ld.StepSound(30);
+                                ld.travel += 3f;
+                                ld.StepSound(30);
 
-                                    if(ld.progress > 1)
-                                        ld.action = LadderAction.ON_LADDER;
+                                if(ld.progress > 1)
+                                    ld.action = LadderAction.ON_LADDER;
 
-                                    break;
-                                }
+                                break;
+                            }
                             case LadderAction.DISMOUNT:
+                            {
+                                ld.progress *= ALIGN_MUL;
+
+                                var ladderMatrix = ld.ladder.WorldMatrix;
+                                var ladderInternal = ld.ladder as MyCubeBlock;
+
+                                var charOnLadder = ladderMatrix.Translation + ladderMatrix.Forward * (ladderInternal.BlockDefinition.ModelOffset.Z + EXTRA_OFFSET_Z);
+
+                                if(ld.ladder.CubeGrid.GridSizeEnum == MyCubeSize.Large)
+                                    charOnLadder += ladderMatrix.Backward;
+
+                                var matrix = ld.character.WorldMatrix;
+                                var topDir = Vector3D.Dot(matrix.Up, ladderMatrix.Up);
+                                var halfY = ((ladderInternal.BlockDefinition.Size.Y * ld.ladder.CubeGrid.GridSize) / 2);
+                                matrix.Translation = charOnLadder + (topDir > 0 ? ladderMatrix.Up : ladderMatrix.Down) * (halfY + 0.1f) + ladderMatrix.Backward * 0.75;
+
+                                ld.character.SetWorldMatrix(MatrixD.SlerpScale(ld.character.WorldMatrix, matrix, MathHelper.Clamp(ld.progress, 0.0f, 1.0f)));
+
+                                ld.travel += 3f;
+                                ld.StepSound(30);
+
+                                if(ld.progress > 1)
                                 {
-                                    ld.progress *= ALIGN_MUL;
-
-                                    var ladderMatrix = ld.ladder.WorldMatrix;
-                                    var ladderInternal = ld.ladder as MyCubeBlock;
-
-                                    var charOnLadder = ladderMatrix.Translation + ladderMatrix.Forward * (ladderInternal.BlockDefinition.ModelOffset.Z + EXTRA_OFFSET_Z);
-
-                                    if(ld.ladder.CubeGrid.GridSizeEnum == MyCubeSize.Large)
-                                        charOnLadder += ladderMatrix.Backward;
-
-                                    var matrix = ld.character.WorldMatrix;
-                                    var topDir = Vector3D.Dot(matrix.Up, ladderMatrix.Up);
-                                    var halfY = ((ladderInternal.BlockDefinition.Size.Y * ld.ladder.CubeGrid.GridSize) / 2);
-                                    matrix.Translation = charOnLadder + (topDir > 0 ? ladderMatrix.Up : ladderMatrix.Down) * (halfY + 0.1f) + ladderMatrix.Backward * 0.75;
-
-                                    ld.character.SetWorldMatrix(MatrixD.SlerpScale(ld.character.WorldMatrix, matrix, MathHelper.Clamp(ld.progress, 0.0f, 1.0f)));
-
-                                    ld.travel += 3f;
-                                    ld.StepSound(30);
-
-                                    if(ld.progress > 1)
-                                    {
-                                        SetEntitySpeed(ld.character, ld.character.WorldMatrix.Down * 3); // dismount downward velocity to touch floor
-                                        removePlayersOnLadder.Add(kv.Key);
-                                        continue;
-                                    }
-
-                                    break;
+                                    SetEntitySpeed(ld.character, ld.character.WorldMatrix.Down * 3); // dismount downward velocity to touch floor
+                                    removePlayersOnLadder.Add(kv.Key);
+                                    continue;
                                 }
+
+                                break;
+                            }
                         }
 
                         SetEntitySpeed(ld.character, linearVelocity);
@@ -1499,24 +1499,24 @@ namespace Digi.Ladder
             switch(action)
             {
                 case LadderAction.CLIMB:
-                    {
-                        if(Math.Abs(climb.Value - myLadderStatus.climb) < 0.0001f && Math.Abs(side.Value - myLadderStatus.side) < 0.0001f && sprint.Value == myLadderStatus.sprint)
-                            return;
+                {
+                    if(Math.Abs(climb.Value - myLadderStatus.climb) < 0.0001f && Math.Abs(side.Value - myLadderStatus.side) < 0.0001f && sprint.Value == myLadderStatus.sprint)
+                        return;
 
-                        myLadderStatus.climb = climb.Value;
-                        myLadderStatus.side = side.Value;
-                        myLadderStatus.sprint = sprint.Value;
-                        break;
-                    }
+                    myLadderStatus.climb = climb.Value;
+                    myLadderStatus.side = side.Value;
+                    myLadderStatus.sprint = sprint.Value;
+                    break;
+                }
                 case LadderAction.DISMOUNT:
                 case LadderAction.JUMP_OFF:
                 case LadderAction.LET_GO:
-                    {
-                        myLadderStatus.side = 0;
-                        myLadderStatus.climb = 0;
-                        myLadderStatus.sprint = false;
-                        break;
-                    }
+                {
+                    myLadderStatus.side = 0;
+                    myLadderStatus.climb = 0;
+                    myLadderStatus.sprint = false;
+                    break;
+                }
             }
 
             int len = sizeof(byte) + sizeof(long) + sizeof(ulong);
