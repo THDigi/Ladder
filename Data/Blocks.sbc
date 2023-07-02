@@ -43,12 +43,6 @@
       <IsAirTight>false</IsAirTight>
       <MirroringZ>Y</MirroringZ>
       <EdgeType>Light</EdgeType>
-      <BlockVariants>
-        <BlockVariant>
-          <TypeId>AdvancedDoor</TypeId>
-          <SubtypeId>LargeShipUsableLadderRetractable</SubtypeId>
-        </BlockVariant>
-      </BlockVariants>
     </Definition>
 
     <Definition>
@@ -92,16 +86,6 @@
       <IsAirTight>false</IsAirTight>
       <MirroringZ>Y</MirroringZ>
       <EdgeType>Light</EdgeType>
-      <BlockVariants>
-        <BlockVariant>
-          <TypeId>TerminalBlock</TypeId>
-          <SubtypeId>SmallShipUsableLadderSegment</SubtypeId>
-        </BlockVariant>
-        <BlockVariant>
-          <TypeId>AdvancedDoor</TypeId>
-          <SubtypeId>SmallShipUsableLadderRetractable</SubtypeId>
-        </BlockVariant>
-      </BlockVariants>
     </Definition>
 
 
