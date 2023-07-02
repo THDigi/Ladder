@@ -36,10 +36,6 @@
         <MountPoint Side="Top" StartX="0.63" StartY="0.04" EndX="0.65" EndY="0.08" />
         <MountPoint Side="Bottom" StartX="0.35" StartY="0.92" EndX="0.37" EndY="0.96" />
         <MountPoint Side="Bottom" StartX="0.63" StartY="0.92" EndX="0.65" EndY="0.96" />
-        <MountPoint Side="Bottom" StartX="0.35" StartY="1.00" EndX="0.37" EndY="1.03" />
-        <MountPoint Side="Bottom" StartX="0.63" StartY="1.00" EndX="0.65" EndY="1.03" />
-        <MountPoint Side="Top" StartX="0.63" StartY="-0.03" EndX="0.65" EndY="0.00" />
-        <MountPoint Side="Top" StartX="0.35" StartY="-0.03" EndX="0.37" EndY="0.00" />
         <MountPoint Side="Back" StartX="0.38" StartY="0.49" EndX="0.62" EndY="0.51" />
         <MountPoint Side="Back" StartX="0.38" StartY="0.89" EndX="0.62" EndY="0.91" />
         <MountPoint Side="Back" StartX="0.38" StartY="0.09" EndX="0.62" EndY="0.11" />
@@ -89,10 +85,6 @@
         <MountPoint Side="Top" StartX="2.14" StartY="0.21" EndX="2.26" EndY="0.39" />
         <MountPoint Side="Bottom" StartX="0.74" StartY="0.61" EndX="0.86" EndY="0.79" />
         <MountPoint Side="Bottom" StartX="2.14" StartY="0.61" EndX="2.26" EndY="0.79" />
-        <MountPoint Side="Bottom" StartX="0.74" StartY="1.02" EndX="0.86" EndY="1.14" />
-        <MountPoint Side="Bottom" StartX="2.14" StartY="1.02" EndX="2.26" EndY="1.14" />
-        <MountPoint Side="Top" StartX="2.14" StartY="-0.14" EndX="2.26" EndY="-0.02" />
-        <MountPoint Side="Top" StartX="0.74" StartY="-0.14" EndX="0.86" EndY="-0.02" />
         <MountPoint Side="Back" StartX="0.89" StartY="2.47" EndX="2.11" EndY="2.53" />
         <MountPoint Side="Back" StartX="0.89" StartY="4.47" EndX="2.11" EndY="4.53" />
         <MountPoint Side="Back" StartX="0.89" StartY="0.47" EndX="2.11" EndY="0.53" />
@@ -144,10 +136,8 @@
         <MountPoint Side="Top" StartX="0.81" StartY="0.22" EndX="0.88" EndY="0.38" />
         <MountPoint Side="Back" StartX="0.81" StartY="0.00" EndX="2.19" EndY="1.00" />
         <MountPoint Side="Top" StartX="2.12" StartY="0.22" EndX="2.19" EndY="0.38" />
-        <MountPoint Side="Top" StartX="0.81" StartY="-0.12" EndX="2.19" EndY="-0.04" />
         <MountPoint Side="Bottom" StartX="0.81" StartY="0.62" EndX="0.88" EndY="0.78" />
         <MountPoint Side="Bottom" StartX="2.12" StartY="0.62" EndX="2.19" EndY="0.78" />
-        <MountPoint Side="Bottom" StartX="0.81" StartY="1.04" EndX="2.19" EndY="1.12" />
       </MountPoints>
       <IsAirTight>false</IsAirTight>
       <MirroringZ>Y</MirroringZ>
@@ -188,7 +178,6 @@
         <MountPoint Side="Back" StartX="0.36" StartY="0.80" EndX="0.64" EndY="1.00" />
         <MountPoint Side="Top" StartX="0.36" StartY="0.04" EndX="0.38" EndY="0.08" />
         <MountPoint Side="Top" StartX="0.62" StartY="0.04" EndX="0.64" EndY="0.08" />
-        <MountPoint Side="Top" StartX="0.36" StartY="-0.03" EndX="0.64" EndY="0.00" />
       </MountPoints>
       <IsAirTight>false</IsAirTight>
       <MirroringZ>Y</MirroringZ>
@@ -289,7 +278,6 @@
         <MountPoint Side="Back" StartX="0.79" StartY="4.00" EndX="2.19" EndY="5.00" />
         <MountPoint Side="Top" StartX="0.79" StartY="0.21" EndX="0.91" EndY="0.39" />
         <MountPoint Side="Top" StartX="2.09" StartY="0.21" EndX="2.21" EndY="0.39" />
-        <MountPoint Side="Top" StartX="0.81" StartY="-0.14" EndX="2.21" EndY="-0.02" />
       </MountPoints>
       <IsAirTight>false</IsAirTight>
       <MirroringZ>Y</MirroringZ>
