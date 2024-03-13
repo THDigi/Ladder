@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-    <BlockVariantGroups>
-        <BlockVariantGroup>
-            <Id Type="MyObjectBuilder_BlockVariantGroup" Subtype="ClimbableLadderGroup" />
-            <Icon>Textures\Icons\Ladder.dds</Icon>
-            <DisplayName>Ladder</DisplayName>
-            <Description>Description_LightArmor</Description>
-            <Blocks>
-                <Block Type="MyObjectBuilder_TerminalBlock" Subtype="LargeShipUsableLadder" />
-                <Block Type="MyObjectBuilder_AdvancedDoor" Subtype="LargeShipUsableLadderRetractable" />
-                
-                <Block Type="MyObjectBuilder_TerminalBlock" Subtype="SmallShipUsableLadder" />
-                <Block Type="MyObjectBuilder_TerminalBlock" Subtype="SmallShipUsableLadderSegment" />
-                <Block Type="MyObjectBuilder_AdvancedDoor" Subtype="SmallShipUsableLadderRetractable" />
-            </Blocks>
-        </BlockVariantGroup>
-    </BlockVariantGroups>
+  <BlockVariantGroups>
+    <BlockVariantGroup>
+      <Id Type="MyObjectBuilder_BlockVariantGroup" Subtype="ClimbableLadderGroup" />
+      <Icon>Textures\Icons\Ladder.dds</Icon>
+      <DisplayName>Ladder</DisplayName>
+      <Description></Description>
+      <Blocks>
+        <Block Type="MyObjectBuilder_TerminalBlock" Subtype="LargeShipUsableLadder" />
+        <Block Type="MyObjectBuilder_AdvancedDoor" Subtype="LargeShipUsableLadderRetractable" />
+
+        <Block Type="MyObjectBuilder_TerminalBlock" Subtype="SmallShipUsableLadder" />
+        <Block Type="MyObjectBuilder_TerminalBlock" Subtype="SmallShipUsableLadderSegment" />
+        <Block Type="MyObjectBuilder_AdvancedDoor" Subtype="SmallShipUsableLadderRetractable" />
+      </Blocks>
+    </BlockVariantGroup>
+  </BlockVariantGroups>
 </Definitions>

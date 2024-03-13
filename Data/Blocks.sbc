@@ -189,35 +189,35 @@
       </Subparts>
       <OpeningSequence>
         <Opening>
-          <IDs>0</IDs> 
+          <IDs>0</IDs>
           <Move>Slide</Move>
           <SlideDirection x="0" y="-1" z="0" />
           <MaxOpen>0.2</MaxOpen>
           <Speed>1.2</Speed>
         </Opening>
         <Opening>
-          <IDs>1</IDs> 
+          <IDs>1</IDs>
           <Move>Slide</Move>
           <SlideDirection x="0" y="-1" z="0" />
           <MaxOpen>0.55</MaxOpen>
           <Speed>1.2</Speed>
         </Opening>
         <Opening>
-          <IDs>2</IDs> 
+          <IDs>2</IDs>
           <Move>Slide</Move>
           <SlideDirection x="0" y="-1" z="0" />
           <MaxOpen>0.9</MaxOpen>
           <Speed>1.2</Speed>
         </Opening>
         <Opening>
-          <IDs>3</IDs> 
+          <IDs>3</IDs>
           <Move>Slide</Move>
           <SlideDirection x="0" y="-1" z="0" />
           <MaxOpen>1.25</MaxOpen>
           <Speed>1.2</Speed>
         </Opening>
         <Opening>
-          <IDs>4</IDs> 
+          <IDs>4</IDs>
           <Move>Slide</Move>
           <SlideDirection x="0" y="-1" z="0" />
           <MaxOpen>1.6</MaxOpen>
@@ -289,35 +289,35 @@
       </Subparts>
       <OpeningSequence>
         <Opening>
-          <IDs>0</IDs> 
+          <IDs>0</IDs>
           <Move>Slide</Move>
           <SlideDirection x="0" y="-1" z="0" />
           <MaxOpen>0.2</MaxOpen>
           <Speed>1.2</Speed>
         </Opening>
         <Opening>
-          <IDs>1</IDs> 
+          <IDs>1</IDs>
           <Move>Slide</Move>
           <SlideDirection x="0" y="-1" z="0" />
           <MaxOpen>0.55</MaxOpen>
           <Speed>1.2</Speed>
         </Opening>
         <Opening>
-          <IDs>2</IDs> 
+          <IDs>2</IDs>
           <Move>Slide</Move>
           <SlideDirection x="0" y="-1" z="0" />
           <MaxOpen>0.9</MaxOpen>
           <Speed>1.2</Speed>
         </Opening>
         <Opening>
-          <IDs>3</IDs> 
+          <IDs>3</IDs>
           <Move>Slide</Move>
           <SlideDirection x="0" y="-1" z="0" />
           <MaxOpen>1.25</MaxOpen>
           <Speed>1.2</Speed>
         </Opening>
         <Opening>
-          <IDs>4</IDs> 
+          <IDs>4</IDs>
           <Move>Slide</Move>
           <SlideDirection x="0" y="-1" z="0" />
           <MaxOpen>1.6</MaxOpen>
