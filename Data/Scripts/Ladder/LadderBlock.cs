@@ -47,8 +47,8 @@ namespace Digi.Ladder
 
                 if(MyAPIGateway.Multiplayer.IsServer && block.BlockDefinition.TypeId != typeof(MyObjectBuilder_AdvancedDoor))
                 {
-                    block.SetValueBool("ShowInTerminal", false);
-                    block.SetValueBool("ShowInToolbarConfig", false);
+                    block.ShowInTerminal = false;
+                    block.ShowInToolbarConfig = false;
                 }
 
                 LadderMod.Instance.Ladders[Entity.EntityId] = block;
